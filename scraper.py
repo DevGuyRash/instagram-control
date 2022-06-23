@@ -16,6 +16,8 @@ import os
 import functools
 import time
 
+import json
+
 
 class Scraper(webdriver.Chrome):
 
@@ -34,20 +36,21 @@ class Scraper(webdriver.Chrome):
         self.driver_wait = WebDriverWait(self, timeout=10)
 
     def wait(self,
-             by=By.CSS_SELECTOR,
-             value="",
+             by=None,
+             value=None,
              condition=conditions.element_to_be_clickable,
              ):
         try:
             return self.driver_wait.until(condition((by, value)))
         except TimeoutError:
-            by_method = input("Timed out attempting to locate. "
-                              "Please provide a new search method: ")
-            value = input("Please enter a new value: ")
-            return self.wait(by_method, value)
+            # Enable to allow users to enter new data in
+            # by_method = input("Timed out attempting to locate. "
+            #                   "Please provide a new search method: ")
+            # value = input("Please enter a new value: ")
+            # return self.wait(by_method, value)
+            return None
 
     def close(self):
-        time.sleep(20)
         super().close()
 
 
@@ -56,10 +59,16 @@ class InstagramScraper(Scraper):
     def __init__(self):
         self._USERNAME = os.getenv('INSTA_USERNAME')
         self._PASSWORD = os.getenv('INSTA_PASSWORD')
+        with open("urls.json") as file:
+            urls = json.load(file)
+            self.HOME = urls["general"]["home"]
+            self.NOTIFICATIONS = urls["general"]["notifications"]
+
         super().__init__()
 
     def home_page(self):
-        self.get("https://www.instagram.com")
+
+        self.get(self.HOME)
 
     def login(self):
         # Find username and password fields
@@ -70,6 +79,30 @@ class InstagramScraper(Scraper):
         username_field.send_keys(self._USERNAME)
         password_field.send_keys(self._PASSWORD)
         password_field.send_keys(Keys.ENTER)
+        try:
+            result = self.driver_wait.until(conditions.url_changes('https://www.instagram.com/'))
+            print("Did change")
+        except TimeoutError:
+            print("Did not change")
+        # if self.login_error():
+        #     print("You failed")
+        #     exit(-1)
+        # else:
+        #     print("You in!")
+
+    def login_error(self):
+        error_message = self.wait(By.CSS_SELECTOR, "p#slfErrorAlert")
+        if error_message:
+            return True
+        else:
+            return False
+
+    def decline_notifs(self):
+        not_now = self.wait(By.XPATH, '//*[@id="mount_0_0_M7"]/div/div[1]/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div/div/div/div[3]/button[2]')
+        try:
+            not_now.click()
+        except AttributeError:
+            self.home_page()
 
 
 if __name__ == "__main__":

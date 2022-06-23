@@ -7,6 +7,9 @@ if __name__ == "__main__":
     driver = InstagramScraper()
     driver.home_page()
     driver.login()
-    driver.home_page()
+    time.sleep(30)  # TODO FOR DEBUGGING
+    print(driver.current_url)  # TODO FOR DEBUGGING
+    # driver.home_page()
+    # driver.decline_notifs()
 
     driver.close()
