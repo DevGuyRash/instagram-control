@@ -1,6 +1,4 @@
 {
-  "general": {
-    "home": "https://www.instagram.com",
-    "notifications": "https://www.instagram.com/accounts/onetap/?next=%2F"
-  }
+  "HOME": "https://www.instagram.com/",
+  "LOGIN": "https://www.instagram.com/accounts/login/ajax/"
 }

@@ -1,115 +1,113 @@
-# Selenium Driver setup
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.support.ui import WebDriverWait
-import selenium.webdriver.support.expected_conditions as conditions
-
-# Selenium config setup
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-
-# Environment variables
+import requests
+import datetime
+from bs4 import BeautifulSoup
+import json
 from dotenv import load_dotenv
 import os
-
-import functools
-import time
-
-import json
+import pickle
 
 
-class Scraper(webdriver.Chrome):
+class InstaScraper:
 
     def __init__(self):
-        # Configure webdriver to use Brave Browser
-        self._options = webdriver.ChromeOptions()
-        self._options.binary_location = os.getenv('BRAVE_PATH')
+        # Log in
+        self.login()
 
-        # Create Service
-        self._service = Service(ChromeDriverManager().install())
-
-        # Create Driver
-        super().__init__(service=self._service, options=self._options)
-
-        # Webdriver Explicit Wait (timeout is in seconds)
-        self.driver_wait = WebDriverWait(self, timeout=10)
-
-    def wait(self,
-             by=None,
-             value=None,
-             condition=conditions.element_to_be_clickable,
-             ):
-        try:
-            return self.driver_wait.until(condition((by, value)))
-        except TimeoutError:
-            # Enable to allow users to enter new data in
-            # by_method = input("Timed out attempting to locate. "
-            #                   "Please provide a new search method: ")
-            # value = input("Please enter a new value: ")
-            # return self.wait(by_method, value)
-            return None
-
-    def close(self):
-        super().close()
+    def login(self):
+        pass
 
 
-class InstagramScraper(Scraper):
+class UserSession(requests.Session):
 
     def __init__(self):
-        self._USERNAME = os.getenv('INSTA_USERNAME')
-        self._PASSWORD = os.getenv('INSTA_PASSWORD')
-        with open("urls.json") as file:
-            urls = json.load(file)
-            self.HOME = urls["general"]["home"]
-            self.NOTIFICATIONS = urls["general"]["notifications"]
+        # Load .env file
+        load_dotenv()
+        # Create base url routes
+        with open("urls.json", encoding="utf-8") as file:
+            self.URLS = json.load(file)
+
+        # Get your user-agent from:
+        # https://www.whatismybrowser.com/detect/what-http-headers-is-my-browser-sending
+        # Create the needed headers without the csrf_token
+        self.insta_headers = {
+            "referer": self.URLS['HOME'],
+            "user-agent": os.getenv('USER-AGENT'),
+            "x-requested-with": 'XMLHttpRequest',
+        }
+
+        # Form data to be posted to login page. Password added in `login`.
+        self.insta_payload = {
+            "username": os.getenv('INSTA_USERNAME'),
+            "opIntoOneTap": {},
+            "queryParams": {},
+        }
 
         super().__init__()
 
-    def home_page(self):
+    def _get_csrf_token(self):
+        return self.get(self.URLS['HOME']).cookies['csrftoken']
 
-        self.get(self.HOME)
+    def _udpate_headers_payload(self):
+        # Add password to payload
+        self.insta_payload["enc_password"] = f"#PWD_INSTAGRAM_BROWSER:0:" \
+                                             f"{datetime.datetime.now().timestamp()}:" \
+                                             f"{os.getenv('INSTA_PASSWORD')}"
 
-    def login(self):
-        # Find username and password fields
-        username_field = self.wait(By.NAME, "username")
-        password_field = self.wait(By.NAME, "password")
+        # Add csrf token to headers
+        self.insta_headers['x-csrftoken'] = self._get_csrf_token()
 
-        # Log in
-        username_field.send_keys(self._USERNAME)
-        password_field.send_keys(self._PASSWORD)
-        password_field.send_keys(Keys.ENTER)
-        try:
-            result = self.driver_wait.until(conditions.url_changes('https://www.instagram.com/'))
-            print("Did change")
-        except TimeoutError:
-            print("Did not change")
-        # if self.login_error():
-        #     print("You failed")
-        #     exit(-1)
-        # else:
-        #     print("You in!")
+    def _save_cookies(self, filename: str = "cookies"):
+        with open(filename, 'wb') as f:
+            pickle.dump(self.cookies._cookies, f)
 
-    def login_error(self):
-        error_message = self.wait(By.CSS_SELECTOR, "p#slfErrorAlert")
-        if error_message:
-            return True
+    def _load_cookies(self, filename: str = "cookies"):
+        """Loads any existing cookie files to the session"""
+        if os.path.exists(os.path.abspath(filename)):
+            with open(filename, 'rb') as f:
+                cookie = pickle.load(f)
+                if cookie:
+                    print("Cookie found")
+                    jar = requests.cookies.RequestsCookieJar()
+                    jar._cookies = cookie
+                    self.cookies = jar
+                    print("Cookie successfully configured")
+                    return True
+                else:
+                    print("Failed to load a cookie")
+                    return False
         else:
+            print("Cookies file does not exist")
             return False
 
-    def decline_notifs(self):
-        not_now = self.wait(By.XPATH, '//*[@id="mount_0_0_M7"]/div/div[1]/div/div[2]/div/div/div[1]/div/div[2]/div/div/div/div/div/div/div/div[3]/button[2]')
-        try:
-            not_now.click()
-        except AttributeError:
-            self.home_page()
+    def login(self):
+        """
+        Logs in with either existing cookie or a newly made one.
+
+        Will search for a cookie file, and if one is not found, it will
+        create and save a new one.
+
+        Returns:
+            `Requests` object of attempted log in if a new
+        """
+        if not self._load_cookies():
+            # Makes sure that the timestamp and csrf_token are current
+            self._udpate_headers_payload()
+            retval = self.post(self.URLS['LOGIN'],
+                               headers=self.headers,
+                               data=self.insta_payload)
+            if retval.status_code == 200:
+                print("Login successful")
+            self._save_cookies()
+            print("New cookie created")
+            return retval
+        else:
+            retval = requests.get("https://www.instagram.com/explore/tags/realestatephotography/")
+            print("Login Successful")
+            return retval
 
 
 if __name__ == "__main__":
-    load_dotenv()
-    driver = InstagramScraper()
-    driver.home_page()
-    driver.login()
-    time.sleep(5)
-
-    driver.close()
+    apple = UserSession()
+    # apple._udpate_headers_payload()
+    # apple.save_cookies()
+    print(apple.login())
