@@ -1,4 +1,6 @@
 {
+  "ACCOUNT_EDIT": "https://www.instagram.com/accounts/edit/",
   "HOME": "https://www.instagram.com/",
-  "LOGIN": "https://www.instagram.com/accounts/login/ajax/"
+  "LOGIN_BACKEND": "https://www.instagram.com/accounts/login/ajax/",
+  "LOGIN": "https://www.instagram.com/accounts/login/"
 }
