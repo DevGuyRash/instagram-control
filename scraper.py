@@ -1,5 +1,6 @@
 from sessions import InstagramSession
 from bs4 import BeautifulSoup
+import requests
 
 
 class InstagramBot:
@@ -9,8 +10,8 @@ class InstagramBot:
         self.session.login()
 
     def get_test_link(self):
-        response = self.session.get("https://www.instagram.com/explore/tags/realestatephotography/")
-        # response = self.session.get("https://www.instagram.com/")
+        # response = requests.get("https://www.instagram.com/explore/tags/arizonaphotography/")
+        response = self.session.get("https://www.instagram.com/explore/tags/arizonaphotography/")
         return [response, BeautifulSoup(response.text, "html.parser")]
 
 
@@ -21,7 +22,7 @@ if __name__ == "__main__":
     #     print(item.prettify())
     #     print()
 
-    with open("temp_file.html", "w", encoding="utf-8") as file:
+    with open("sample_file_1.html", "w", encoding="utf-8") as file:
         file.write(soup.prettify())
 
     print(soup.prettify())

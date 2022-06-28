@@ -6,6 +6,7 @@ import json
 from dotenv import load_dotenv
 import os
 import pickle
+from bs4 import BeautifulSoup
 
 
 class UserSession(requests.Session):
@@ -15,7 +16,7 @@ class UserSession(requests.Session):
         # Create error message to display in event of failure
         error_message = f'Failed to generate csrf token for "{url}".'
         try:
-            return self.get(url).cookies['csrftoken']
+            return self.get(url, *args, **kwargs).cookies['csrftoken']
         except KeyError as error:
             print(error_message)
             print("Session does not have a valid csrf token")
@@ -111,7 +112,7 @@ class UserSession(requests.Session):
 
     def get(self, *args, **kwargs):
         """Set a default timeout for all get requests."""
-        return super().get(*args, **kwargs, timeout=3)
+        return super().get(*args, **kwargs, timeout=10)
 
     @staticmethod
     def list_codes():
@@ -137,9 +138,27 @@ class InstagramSession(UserSession):
         # Create the needed headers without the csrf_token
         self._insta_headers = {
             "referer": self.URLS['HOME'],
-            "user-agent": os.getenv('USER-AGENT'),
+            # "user-agent": os.getenv('USER-AGENT'),
+            # "user-agent": "Applebot",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:101.0) Gecko/20100101 Firefox/101.0",
             "x-requested-with": 'XMLHttpRequest',
             "x-csrftoken": "",
+
+            ### HEADERS BEING TESTED ###
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate, br",
+            "accept-language": "en-US,en;q=0.9",
+            # "content-length": "322",
+            # "content-type": "application/x-www-form-urlencoded",
+            # "origin": "https://www.instagram.com",
+            # "sec-fetch-dest": "empty",
+            # "sec-fetch-mode": "cors",
+            # "sec-fetch-site": "same-origin",
+            # "sec-gpc": "1",
+            "upgrade-insecure-requests": "1",
+            # "x-asbd-id": "198387",
+            # "x-instagram-ajax": "3f73a432a3a5",
+            # "x-ig-www-claim": "0",
         }
 
         # Form data to be posted to login page. Password added in `login`.
@@ -150,10 +169,18 @@ class InstagramSession(UserSession):
             "optIntoOneTap": "false",
         }
 
-    def _update_csrf_token(self) -> None:
-        """Binds a new csrf token to `x-csrftoken` for session headers."""
-        # Add fresh csrf token to headers
-        self._insta_headers['x-csrftoken'] = self._get_csrf_token(self.URLS['LOGIN'])
+    def _update_csrf_token(self, token: str = None) -> None:
+        """
+        Binds a new csrf token to `x-csrftoken` for session headers.
+
+        If `token` is specified, then it will bind this one. Else it
+        will create a new one.
+
+        Args:
+            token: Csrf token to bind to headers.
+        """
+        self._insta_headers['x-csrftoken'] = token or self._get_csrf_token(self.URLS['LOGIN'])
+        self.headers.update(self._insta_headers)
 
     def _update_payload(self) -> None:
         """
@@ -206,9 +233,6 @@ class InstagramSession(UserSession):
             self._update_csrf_token()
             self._update_payload()
 
-            # Update headers
-            self.headers.update(self._insta_headers)
-
             # Log in to the server
             print("Attempting to log in...")
             response = self.post(self.URLS['LOGIN_BACKEND'],
@@ -231,6 +255,7 @@ class InstagramSession(UserSession):
                     # If login succeeds
                     print("Login successful.")
                     print("New cookie has been created and saved")
+                    self._update_csrf_token(response.cookies['csrftoken'])
                     self._save_cookies(response)
                     return True
                 else:
@@ -254,6 +279,11 @@ if __name__ == "__main__":
     apple.login()
 
     retval = apple.get("https://www.instagram.com/explore/tags/realestatephotography/")  # TODO FOR DEBUGGING
-    print(retval.text)  # TODO FOR DEBUGGING
-    print(retval.status_code)  # TODO FOR DEBUGGING
-    print(retval.url)  # TODO FOR DEBUGGING
+    soup = BeautifulSoup(retval.text, features="html.parser")
+    # print(soup.prettify())
+    with open("sample_file_1.html", "w", encoding="utf-8") as file:
+        file.write(soup.prettify())
+
+    print(soup.find("meta").get("name"))
+
+    #  TODO Update session with bs4 to detect when account has been IP Banned due to too many logins
