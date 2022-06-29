@@ -1,6 +1,22 @@
 {
-  "ACCOUNT_EDIT": "https://www.instagram.com/accounts/edit/",
-  "HOME": "https://www.instagram.com/",
-  "LOGIN_BACKEND": "https://www.instagram.com/accounts/login/ajax/",
-  "LOGIN": "https://www.instagram.com/accounts/login/"
+  "instagram": {
+    "account-edit": "https://www.instagram.com/accounts/edit/",
+    "home": "https://www.instagram.com/",
+    "login-backend": "https://www.instagram.com/accounts/login/ajax/",
+    "login": "https://www.instagram.com/accounts/login/"
+  },
+  "user-agent": {
+    "base": "https://api.whatismybrowser.com/api/v2/",
+    "parse": "user_agent_parse",
+    "data-dump": "user_agent_database_dump_url",
+    "data-search": "user_agent_database_search",
+    "query-types": {
+      "software": "https://developers.whatismybrowser.com/useragents/explore/software_name/",
+      "operating-system": "https://developers.whatismybrowser.com/useragents/explore/operating_system_name/",
+      "operating-platform": "https://developers.whatismybrowser.com/useragents/explore/operating_platform_string/",
+      "software-type": "https://developers.whatismybrowser.com/useragents/explore/software_type_specific/",
+      "hardware-type": "https://developers.whatismybrowser.com/useragents/explore/hardware_type_specific/",
+      "layout-engine": "https://developers.whatismybrowser.com/useragents/explore/layout_engine_name/"
+      }
+  }
 }

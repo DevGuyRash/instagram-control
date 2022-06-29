@@ -159,6 +159,8 @@ cython_debug/
 # Custom ignores
 scratchpad.py
 sample_file_1.html
+cookies
+cookies2
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can

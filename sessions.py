@@ -129,7 +129,7 @@ class InstagramSession(UserSession):
 
         # Create base url routes
         with open("urls.json", encoding="utf-8") as file:
-            self.URLS = json.load(file)
+            self.URLS = json.load(file)["instagram"]
 
         super().__init__()
 
@@ -137,7 +137,7 @@ class InstagramSession(UserSession):
         # https://www.whatismybrowser.com/detect/what-http-headers-is-my-browser-sending
         # Create the needed headers without the csrf_token
         self._insta_headers = {
-            "referer": self.URLS['HOME'],
+            "referer": self.URLS['home'],
             # "user-agent": os.getenv('USER-AGENT'),
             # "user-agent": "Applebot",
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:101.0) Gecko/20100101 Firefox/101.0",
@@ -179,7 +179,7 @@ class InstagramSession(UserSession):
         Args:
             token: Csrf token to bind to headers.
         """
-        self._insta_headers['x-csrftoken'] = token or self._get_csrf_token(self.URLS['LOGIN'])
+        self._insta_headers['x-csrftoken'] = token or self._get_csrf_token(self.URLS['login'])
         self.headers.update(self._insta_headers)
 
     def _update_payload(self) -> None:
@@ -205,7 +205,7 @@ class InstagramSession(UserSession):
             `True` if the session is logged in, or `False` if the
             session is not logged in.
         """
-        response = self.get(self.URLS['ACCOUNT_EDIT'])
+        response = self.get(self.URLS['account-edit'])
         if response.history:
             return False
         else:
@@ -235,7 +235,7 @@ class InstagramSession(UserSession):
 
             # Log in to the server
             print("Attempting to log in...")
-            response = self.post(self.URLS['LOGIN_BACKEND'],
+            response = self.post(self.URLS['login-backend'],
                                  # headers=self._insta_headers,
                                  data=self._insta_payload)
 

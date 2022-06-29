@@ -11,7 +11,7 @@ class InstagramBot:
 
     def get_test_link(self):
         # response = requests.get("https://www.instagram.com/explore/tags/arizonaphotography/")
-        response = self.session.get("https://www.instagram.com/explore/tags/arizonaphotography/")
+        response = self.session.get("https://www.instagram.com/explore/tags/arizonaphotographystudio/")
         return [response, BeautifulSoup(response.text, "html.parser")]
 
 
