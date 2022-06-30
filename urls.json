@@ -18,5 +18,8 @@
       "hardware-type": "https://developers.whatismybrowser.com/useragents/explore/hardware_type_specific/",
       "layout-engine": "https://developers.whatismybrowser.com/useragents/explore/layout_engine_name/"
       }
+    },
+  "proxies": {
+      "base": "https://free-proxy-list.net/"
   }
 }

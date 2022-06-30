@@ -135,30 +135,31 @@ class InstagramSession(UserSession):
 
         # Get your user-agent from:
         # https://www.whatismybrowser.com/detect/what-http-headers-is-my-browser-sending
-        # Create the needed headers without the csrf_token
+        # Create the needed _headers without the csrf_token
         self._insta_headers = {
             "referer": self.URLS['home'],
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.53 Safari/537.36',
             # "user-agent": os.getenv('USER-AGENT'),
             # "user-agent": "Applebot",
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:101.0) Gecko/20100101 Firefox/101.0",
             "x-requested-with": 'XMLHttpRequest',
             "x-csrftoken": "",
 
             ### HEADERS BEING TESTED ###
-            "accept": "*/*",
-            "accept-encoding": "gzip, deflate, br",
-            "accept-language": "en-US,en;q=0.9",
-            # "content-length": "322",
-            # "content-type": "application/x-www-form-urlencoded",
-            # "origin": "https://www.instagram.com",
-            # "sec-fetch-dest": "empty",
-            # "sec-fetch-mode": "cors",
-            # "sec-fetch-site": "same-origin",
-            # "sec-gpc": "1",
+            # "accept-encoding": "gzip, deflate, br",
             "upgrade-insecure-requests": "1",
-            # "x-asbd-id": "198387",
-            # "x-instagram-ajax": "3f73a432a3a5",
-            # "x-ig-www-claim": "0",
+            'authority': 'www.instagram.com',
+            'accept': '*/*',
+            'accept-language': 'en-US,en;q=0.9',
+            # Requests sorts cookies= alphabetically
+            'origin': 'https://www.instagram.com',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin',
+            'sec-gpc': '1',
+            'x-asbd-id': '198387',
+            'x-ig-app-id': '936619743392459',
+            'x-ig-www-claim': 'hmac.AR30QCtXQI9INicBq1cXKz87kAaAcK1Ph_veFdzJfUeglJ7O',
+            'x-instagram-ajax': 'f2e343e85828',
         }
 
         # Form data to be posted to login page. Password added in `login`.
@@ -171,13 +172,13 @@ class InstagramSession(UserSession):
 
     def _update_csrf_token(self, token: str = None) -> None:
         """
-        Binds a new csrf token to `x-csrftoken` for session headers.
+        Binds a new csrf token to `x-csrftoken` for session _headers.
 
         If `token` is specified, then it will bind this one. Else it
         will create a new one.
 
         Args:
-            token: Csrf token to bind to headers.
+            token: Csrf token to bind to _headers.
         """
         self._insta_headers['x-csrftoken'] = token or self._get_csrf_token(self.URLS['login'])
         self.headers.update(self._insta_headers)
@@ -236,7 +237,7 @@ class InstagramSession(UserSession):
             # Log in to the server
             print("Attempting to log in...")
             response = self.post(self.URLS['login-backend'],
-                                 # headers=self._insta_headers,
+                                 # _headers=self._insta_headers,
                                  data=self._insta_payload)
 
             # Check that login was successful
@@ -276,11 +277,11 @@ class InstagramSession(UserSession):
 
 if __name__ == "__main__":
     apple = InstagramSession()
-    apple.login()
+    apple.login(fresh=True)
 
     retval = apple.get("https://www.instagram.com/explore/tags/realestatephotography/")  # TODO FOR DEBUGGING
-    soup = BeautifulSoup(retval.text, features="html.parser")
-    # print(soup.prettify())
+    soup = BeautifulSoup(retval.text, features="lxml")
+    print(soup.prettify())
     with open("sample_file_1.html", "w", encoding="utf-8") as file:
         file.write(soup.prettify())
 
