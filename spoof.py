@@ -1,5 +1,4 @@
 import csv
-
 import requests
 import os
 from dotenv import load_dotenv
@@ -177,13 +176,25 @@ class UserAgents:
 
 
 class Proxies:
+    """
+    Store, pull, and save proxies from https://free-proxy-list.net/
+
+    To retrieve a fresh set of proxies, either call `get_proxies` or
+    the `proxies` attribute. They are the same thing.
+
+    Attributes:
+        filename (str): Name of file to save proxies to.
+        _URLS (dict): Contains all urls to retrieve proxies from
+    """
 
     def __init__(self):
         self.filename = "proxies.csv"
         with open("urls.json", encoding='utf-8') as file:
             self._URLS = json.load(file)["proxies"]
 
-        self.proxies = self.get_proxies()
+    def __getattr__(self, item):
+        if item == "proxies":
+            return self.get_proxies()
 
     def _generate_simple_proxies_file(self, proxy_list: list) -> None:
         """Saves a csv file of only proxies/ports"""
@@ -243,11 +254,28 @@ class Proxies:
             if save:
                 self._generate_simple_proxies_file(proxies_raw)
         else:
+            # Set hours and minutes to seconds
+            hour = 60 * 60
+            minute = 60
             # If more detailed info is desired about each proxy
             proxies = []
             table = soup.select("#list tbody tr")
             # Create list of proxies
             for (ip, port, code, country, anonymity, google, https, last_checked) in table:
+                # Convert last_checked to seconds
+                time_to_add = 0
+                time = last_checked.string.split()
+                if "hour" in time or "hours" in time:
+                    time_to_add += hour * int(time.pop(0))
+                    time.pop(0)
+
+                if "min" in time or "mins" in time:
+                    time_to_add += minute * int(time.pop(0))
+                    time.pop(0)
+
+                if "sec" in time or "secs" in time:
+                    time_to_add += int(time.pop(0))
+
                 proxy = Proxy(
                     ip=ip.string,
                     port=port.string,
@@ -256,7 +284,7 @@ class Proxies:
                     anonymity=anonymity.string,
                     google=google.string,
                     https=https.string,
-                    last_checked=last_checked.string
+                    last_checked=str(time_to_add)
                 )
                 # Add to country and code dicts so that proxies can be
                 # looked up by either their country or country code.
@@ -271,7 +299,7 @@ class Proxies:
     @staticmethod
     def group_by(proxy_list: list, attribute: str):
         """
-        Returns a proxies `list` sorted by `attribute`
+        Returns a shallow copy of `list` sorted by `attribute`
 
         Proxy lists are sorted by `last_checked` attribute by default.
 
@@ -290,10 +318,71 @@ class Proxies:
 
         return sorted(proxy_list, key=sort_key)
 
-    # def get_random_proxy(self, country: str = "") -> str:
+    @staticmethod
+    def extract_by_type(proxy_list: list, attributes: dict):
+        """
+        Returns a copy of `proxy_list` with specified proxies.
+
+        Checks each `Proxy` object in `proxy_list` for the specified
+        attributes in `attributes`, and that the values are the same as
+        the corresponding value in `attributes`.
+
+        If `last_checked` attribute is provided, the pair value will be
+        compared to the proxy value in seconds. If the proxy value is
+        older than the pair value, it will not be added.
+
+        Args:
+            proxy_list: `list` of `Proxy` objects
+            attributes: `dict` of pairs of valid `Proxy` attributes,
+                and their desired value.
+
+        Returns:
+            `list` containing only `Proxy` objects that have attributes
+            specified by `attributes` keys, matching the paired value.
+        """
+        proxies = []
+        for proxy in proxy_list:
+            try:
+                append = True
+                for attribute, desired_type in attributes.items():
+                    attr = proxy.__getattribute__(attribute)
+                    if attribute == "last_checked":
+                        if int(attr) > int(desired_type):
+                            # If it's been longer than the given amount (desired_type)
+                            # in seconds.
+                            append = False
+                    else:
+                        if not attr.casefold() \
+                                == desired_type.casefold():
+                            # If attribute does not match desired type, don't append.
+                            append = False
+
+                # If all attributes matched all desired types
+                if append:
+                    proxies.append(proxy)
+
+            except AttributeError:
+                # If proxy does not have the attribute, continue
+                continue
+
+        return proxies
 
 
 class Proxy:
+    """
+    Class to contain, display, and provide info about a proxy.
+
+    Attributes:
+        ip (str): IP address of proxy
+        port (str): Port of proxy
+        code (str): Country code where proxy is located
+        country (str): Country where proxy is located
+        anonymity (str): Type of proxy (transparent, anonymous, elite).
+        google (str): Whether it supports google or not
+        https (str): Whether it's HTTP(S) or HTTP
+        last_checked (str): The last time proxy was checked for if it's
+            still working.
+    """
 
     def __init__(self,
                  ip: str,
@@ -340,9 +429,6 @@ class Proxy:
             self.last_checked,
         ]
 
-    def sorter(self, sort_attr):
-        return self.__getattribute__(sort_attr)
-
 
 if __name__ == "__main__":
     a = Proxies()
@@ -350,5 +436,5 @@ if __name__ == "__main__":
     proxies = a.get_proxies()
     new_proxies = Proxies.group_by(proxies, "anonymity")
     for item in new_proxies:
-        print(item.get_details())
+        print(item)
         print()

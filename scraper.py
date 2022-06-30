@@ -1,29 +1,46 @@
 from sessions import InstagramSession
+from spoof import Proxies
 from bs4 import BeautifulSoup
 import requests
+import random
 
 
 class InstagramBot:
 
     def __init__(self):
         self.session = InstagramSession()
-        self.session.login()
+        self.proxies = Proxies()
+
+        # self.session.login()
 
     def get_test_link(self):
-        # response = requests.get("https://www.instagram.com/explore/tags/arizonaphotography/")
-        response = self.session.get("https://www.instagram.com/explore/tags/arizonaphotographystudio/")
-        return [response, BeautifulSoup(response.text, "html.parser")]
+        proxy = Proxies.extract_by_type(self.proxies.proxies,
+                                        {
+                                            "code": "US",
+                                            "https": "yes",
+                                            "last_checked": "50000",
+                                        })
+        for item in proxy:
+            print(item)
+            print()
+        # URL = "https://www.instagram.com/"
+        # try:
+        #     response = requests.get(URL,
+        #                             headers=self.session.headers,
+        #                             cookies=self.session.cookies,
+        #                             proxies={
+        #                                 "https": proxy.proxy,
+        #                                 "http": proxy.proxy,
+        #                                 "last_checked": "60",
+        #                             }
+        #                             )
+        # except requests.exceptions.ProxyError:
+        #     print("Proxy error")
+        # else:
+        #     return [response, BeautifulSoup(response.text, "html.parser")]
 
 
 if __name__ == "__main__":
     drive = InstagramBot()
-    ret, soup = drive.get_test_link()
-    # for item in soup.find_all("link"):
-    #     print(item.prettify())
-    #     print()
+    drive.get_test_link()
 
-    with open("sample_file_1.html", "w", encoding="utf-8") as file:
-        file.write(soup.prettify())
-
-    print(soup.prettify())
-    # print(ret.url)
