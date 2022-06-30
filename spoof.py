@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 import json
 from bs4 import BeautifulSoup
+import random
 
 
 class UserAgents:
@@ -179,8 +180,7 @@ class Proxies:
     """
     Store, pull, and save proxies from https://free-proxy-list.net/
 
-    To retrieve a fresh set of proxies, either call `get_proxies` or
-    the `proxies` attribute. They are the same thing.
+    To retrieve a fresh set of proxies, Call `get_proxies` method.
 
     Attributes:
         filename (str): Name of file to save proxies to.
@@ -191,10 +191,6 @@ class Proxies:
         self.filename = "proxies.csv"
         with open("urls.json", encoding='utf-8') as f:
             self._URLS = json.load(f)["proxies"]
-
-    def __getattr__(self, item):
-        if item == "proxies":
-            return self.get_proxies()
 
     def _generate_simple_proxies_file(self, proxy_list: list) -> None:
         """Saves a csv file of only proxies/ports"""
@@ -217,7 +213,10 @@ class Proxies:
                 # Get list of info about each proxy and write it to csv
                 writer.writerow(proxy.get_details())
 
-    def get_proxies(self, simple: bool = False, save: bool = False) -> list:
+    def get_proxies(self,
+                    simple: bool = False,
+                    save: bool = False,
+                    single: bool = False) -> [list | object]:
         """
         Creates a list of new proxies to use.
 
@@ -233,12 +232,16 @@ class Proxies:
                 used per proxy.
             save: `bool` that determines whether to save the proxies
                 into a file.
+            single: `bool` that determines if a single random proxy is
+                returned, or a list of them.
 
         Returns:
-            If `simple` is set to `True`, returns a `list` of `Proxy`
-            objects with only the `ip` and `port` attributes.
-            If `simple` is set to `False`, returns a `list` of `Proxy`
-            objects with all attributes filled in.
+            If `single` is set to `True`, returns only a single proxy.
+                Otherwise, returns a `list`.
+            If `simple` is set to `True`, `Proxy` objects with only the
+            `ip` and `port` attributes.
+            If `simple` is set to `False`, `Proxy` objects with all
+            attributes filled in.
         """
         response = requests.get(self._URLS["base"])
         soup = BeautifulSoup(response.text, features="lxml")
@@ -294,7 +297,43 @@ class Proxies:
             if save:
                 self._generate_proxies_file(proxies)
 
-        return proxies
+        if single:
+            return random.choice(proxies)
+        else:
+            return proxies
+
+    def get_usr_proxy_settings(self):
+        """Gets proxy settings for `extract_by_type` from user."""
+        menu = Proxy.choice_menu()
+        values = {}
+        while True:
+            # List attributes
+            for index, attribute in menu.items():
+                print(f"{index + 1}: {attribute}")
+
+            print("0: exit (finished adding options)")
+            print("Please choose which options you'd like to set: ", end='')
+            # Create valid options and include the 0 for exit
+            valid_choices = {str(index + 1) for index in menu}
+            valid_choices.update({"0"})
+            # Get user input
+            user_choice = self.get_input(valid_choices)
+            if user_choice == "0":
+                break
+
+            # Add the value for the proxy attribute
+            values[menu[int(user_choice) - 1]] = \
+                input("What value should the proxy have: ")
+
+        return values
+
+    def get_input(self, valid_options: set):
+        user_input = input()
+        if user_input not in valid_options:
+            print("Invalid selection! Please try again: ", end='')
+            return self.get_input(valid_options)
+
+        return user_input
 
     @staticmethod
     def group_by(proxy_list: list, attribute: str):
@@ -319,7 +358,7 @@ class Proxies:
         return sorted(proxy_list, key=sort_key)
 
     @staticmethod
-    def extract_by_type(proxy_list: list, attributes: dict):
+    def extract_by_type(proxy_list: list, attributes: dict, single: bool = False):
         """
         Returns a copy of `proxy_list` with specified proxies.
 
@@ -335,6 +374,8 @@ class Proxies:
             proxy_list: `list` of `Proxy` objects
             attributes: `dict` of pairs of valid `Proxy` attributes,
                 and their desired value.
+            single: When set to `True`, will return a single random
+                proxy from the generated list.
 
         Returns:
             `list` containing only `Proxy` objects that have attributes
@@ -351,9 +392,14 @@ class Proxies:
                             # If it's been longer than the given amount (desired_type)
                             # in seconds.
                             append = False
+                    elif attribute == "anonymity" and desired_type == "elite":
+                        # allow for 'elite' to be typed instead of just 'elite proxy'
+                        if not len(attr.split()) == 2:
+                            # If attribute does not match desired type, don't append.
+                            append = False
                     else:
-                        if not attr.casefold() \
-                               == desired_type.casefold():
+                        if not "".join(attr.casefold().split()) \
+                               == "".join(desired_type.casefold().split()):
                             # If attribute does not match desired type, don't append.
                             append = False
 
@@ -362,10 +408,13 @@ class Proxies:
                     proxies.append(proxy)
 
             except AttributeError:
-                # If proxy does not have the attribute, continue
+                # If the dict is empty, or the attribute does not exist
                 continue
 
-        return proxies
+        if single:
+            return random.choice(proxies)
+        else:
+            return proxies
 
 
 class Proxy:
@@ -429,15 +478,20 @@ class Proxy:
             self.last_checked,
         ]
 
+    @staticmethod
+    def choice_menu():
+        """Returns a `dict` of attributes in menu format."""
+        return {
+            0: "ip",
+            1: "port",
+            2: "code",
+            3: "country",
+            4: "anonymity",
+            5: "google",
+            6: "https",
+            7: "last_checked",
+        }
+
 
 if __name__ == "__main__":
-    a = Proxies()
-    proxy = Proxies.extract_by_type(a.proxies,
-                                    {
-                                        "code": "US",
-                                        "https": "yes",
-                                        "last_checked": "3000",
-                                    })
-    for item in proxy:
-        print(item)
-        print()
+    pass
