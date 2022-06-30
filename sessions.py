@@ -181,7 +181,6 @@ class InstagramSession(UserSession):
             token: Csrf token to bind to _headers.
         """
         self._insta_headers['x-csrftoken'] = token or self._get_csrf_token(self.URLS['login'])
-        self.headers.update(self._insta_headers)
 
     def _update_payload(self) -> None:
         """
@@ -194,6 +193,10 @@ class InstagramSession(UserSession):
         self._insta_payload["enc_password"] = f"#PWD_INSTAGRAM_BROWSER:0:" \
                                               f"{datetime.datetime.now().timestamp()}:" \
                                               f"{os.getenv('INSTA_PASSWORD')}"
+
+    def _update_headers(self):
+        """Updates session headers with `_insta_headers`."""
+        self.headers.update(self._insta_headers)
 
     def check_if_logged_in(self) -> bool:
         """
@@ -233,6 +236,8 @@ class InstagramSession(UserSession):
             # Makes sure that the timestamp and csrf_token are current
             self._update_csrf_token()
             self._update_payload()
+            # Update headers with new csrf_token info
+            self._update_headers()
 
             # Log in to the server
             print("Attempting to log in...")
@@ -257,15 +262,21 @@ class InstagramSession(UserSession):
                     print("Login successful.")
                     print("New cookie has been created and saved")
                     self._update_csrf_token(response.cookies['csrftoken'])
+                    # Update headers with new csrf_token info
+                    self._update_headers()
+                    # Save cookies to file for future use
                     self._save_cookies(response)
                     return True
                 else:
                     # If the authentication status is False
                     print("Login failed. Please check:")
-                    print("\t• Headers\n\t• Payload\n\t• Username\n\t• Password")
+                    print("\t• Username\n\t• Password")
                     return False
         else:
-            # If a cookie is being used for the session
+            # If a cookie is being used for the session, update the headers and
+            # use the csrf_token of the cookie
+            self._update_csrf_token(self.cookies['csrftoken'])
+            self._update_headers()
             if self.check_if_logged_in():
                 print("Login successful.")
                 return True

@@ -11,8 +11,8 @@ class UserAgents:
     def __init__(self):
         load_dotenv()
         self._API_KEY = os.getenv('USER_AGENT_API_KEY')
-        with open("urls.json", encoding='utf-8') as file:
-            self._URLS = json.load(file)["user-agent"]
+        with open("urls.json", encoding='utf-8') as f:
+            self._URLS = json.load(f)["user-agent"]
 
         self._headers = {
             "X-API-KEY": self._API_KEY
@@ -189,8 +189,8 @@ class Proxies:
 
     def __init__(self):
         self.filename = "proxies.csv"
-        with open("urls.json", encoding='utf-8') as file:
-            self._URLS = json.load(file)["proxies"]
+        with open("urls.json", encoding='utf-8') as f:
+            self._URLS = json.load(f)["proxies"]
 
     def __getattr__(self, item):
         if item == "proxies":
@@ -353,7 +353,7 @@ class Proxies:
                             append = False
                     else:
                         if not attr.casefold() \
-                                == desired_type.casefold():
+                               == desired_type.casefold():
                             # If attribute does not match desired type, don't append.
                             append = False
 
@@ -432,9 +432,12 @@ class Proxy:
 
 if __name__ == "__main__":
     a = Proxies()
-    # print(a.get_proxies(save=True))
-    proxies = a.get_proxies()
-    new_proxies = Proxies.group_by(proxies, "anonymity")
-    for item in new_proxies:
+    proxy = Proxies.extract_by_type(a.proxies,
+                                    {
+                                        "code": "US",
+                                        "https": "yes",
+                                        "last_checked": "3000",
+                                    })
+    for item in proxy:
         print(item)
         print()

@@ -3,7 +3,8 @@
     "account-edit": "https://www.instagram.com/accounts/edit/",
     "home": "https://www.instagram.com/",
     "login-backend": "https://www.instagram.com/accounts/login/ajax/",
-    "login": "https://www.instagram.com/accounts/login/"
+    "login": "https://www.instagram.com/accounts/login/",
+    "tag-info": "https://i.instagram.com/api/v1/tags/web_info/"
   },
   "user-agent": {
     "base": "https://api.whatismybrowser.com/api/v2/",
