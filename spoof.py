@@ -370,6 +370,13 @@ class Proxies:
         compared to the proxy value in seconds. If the proxy value is
         older than the pair value, it will not be added.
 
+        For the `anonymity` proxy attribute, any of the following can be
+        provided in any case:
+        `yes`
+        `no`
+        `true`
+        `false`
+
         Args:
             proxy_list: `list` of `Proxy` objects
             attributes: `dict` of pairs of valid `Proxy` attributes,

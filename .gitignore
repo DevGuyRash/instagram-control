@@ -158,6 +158,8 @@ cython_debug/
 
 # Custom ignores
 /user_agents
+/html
+/json
 scratchpad.py
 sample_file_1.html
 cookies
