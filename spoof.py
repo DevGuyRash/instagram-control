@@ -388,16 +388,50 @@ class Proxies:
                 for attribute, desired_type in attributes.items():
                     attr = proxy.__getattribute__(attribute)
                     if attribute == "last_checked":
+                        # valid_math = ['+', '-', '/', '*']
+                        # # Check to see if it's math by looking for an operator.
+                        # joined_var = "".join(desired_type.split())
+                        # for value in joined_var:
+                        #     # Iterate through each piece, before running an eval.
+                        #     if not value.isnumeric():
+                        #         # First check for non-math-equations
+                        #         if value not in valid_math:
+                        #             # If any piece is anything other than math
+                        #             print()  # Spacer for text
+                        #             print("Please enter a valid math equation.")
+                        #             return
+                        #
+                        # try:
+                        #     # If everything is valid math, evaluate it.
+                        #     result = eval(desired_type)
+                        # except SyntaxError:
+                        #     # If only numbers were given
+                        #     result = int(joined_var)
+                        #
                         if int(attr) > int(desired_type):
                             # If it's been longer than the given amount (desired_type)
                             # in seconds.
                             append = False
+
                     elif attribute == "anonymity" and desired_type == "elite":
                         # allow for 'elite' to be typed instead of just 'elite proxy'
                         if not len(attr.split()) == 2:
                             # If attribute does not match desired type, don't append.
                             append = False
+
+                    elif attribute == "google":
+                        # Allow for true or false to be used.
+                        if desired_type.casefold() == "true":
+                            desired_type = "yes"
+
+                        elif desired_type.casefold() == "false":
+                            desired_type = "false"
+
+                        if not attr.casefold() == desired_type.casefold():
+                            append = False
+
                     else:
+                        # Default handling
                         if not "".join(attr.casefold().split()) \
                                == "".join(desired_type.casefold().split()):
                             # If attribute does not match desired type, don't append.
@@ -411,9 +445,17 @@ class Proxies:
                 # If the dict is empty, or the attribute does not exist
                 continue
 
-        if single:
+        if single and proxies:
             return random.choice(proxies)
+
+        elif not proxies:
+            # If no proxies have all the `attributes`, an index error is raised.
+            print("No proxies match the given parameters:")
+            for attr_name, proxy_value in attributes.items():
+                print(f"{attr_name}: {proxy_value}")
+
         else:
+            # If any proxies had all specified attributes
             return proxies
 
 

@@ -24,7 +24,8 @@ class InstagramBot:
             print("1: Random")
             print("2: Specific")
             print("For your proxy (1 or 2): ", end='')
-            choice = self.get_input({"1", "2"})
+            # choice = self.get_input({"1", "2"})
+            choice = 2  # TODO FOR DEBUGGING
             if choice == "1":
                 # If user wants a random one
                 proxy = self.proxies.get_proxies(single=True)
@@ -35,10 +36,16 @@ class InstagramBot:
                     "http": proxy,
                 }
             else:
-                proxy_extract_settings = self.proxies.get_usr_proxy_settings()
-                proxy = Proxies.extract_by_type(self.proxies.get_proxies(),
-                                                proxy_extract_settings,
-                                                single=True)
+                proxy = None
+
+                # Get valid proxy
+                while True:
+                    proxy = self.get_user_proxy()
+                    if proxy:
+                        break
+                    else:
+                        print("Resetting selection...")
+
                 print("Your generated proxy:")
                 print(proxy)
                 proxies = {
@@ -51,6 +58,15 @@ class InstagramBot:
             proxies = {}
 
         return self.session.get(url, proxies=proxies, *args, **kwargs)
+
+    def get_user_proxy(self):
+        """Get a proxy that meets user defined standards and return it."""
+        proxy_extract_settings = self.proxies.get_usr_proxy_settings()
+        proxy = Proxies.extract_by_type(self.proxies.get_proxies(),
+                                        proxy_extract_settings,
+                                        single=True)
+
+        return proxy
 
     def get_test_link(self):
         URL = "https://i.instagram.com/api/v1/tags/web_info/?tag_name=realestatephotography"
