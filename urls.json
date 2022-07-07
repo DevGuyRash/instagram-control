@@ -4,7 +4,11 @@
     "home": "https://www.instagram.com/",
     "login-backend": "https://www.instagram.com/accounts/login/ajax/",
     "login": "https://www.instagram.com/accounts/login/",
-    "tag-info": "https://i.instagram.com/api/v1/tags/web_info/"
+    "tag-info": "https://i.instagram.com/api/v1/tags/web_info/",
+    "user-profile": "https://i.instagram.com/api/v1/users/web_profile_info/",
+    "user-post-api": "https://i.instagram.com/api/v1/media/",
+    "user-post-api-end": "info",
+    "user-post": "https://www.instagram.com/p/"
   },
   "user-agent": {
     "base": "https://api.whatismybrowser.com/api/v2/",

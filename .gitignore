@@ -160,6 +160,7 @@ cython_debug/
 /user_agents
 /html
 /json
+json/user_profile.json
 scratchpad.py
 sample_file_1.html
 cookies

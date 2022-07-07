@@ -1,9 +1,11 @@
 from sessions import InstagramSession
-from spoof import Proxies, Proxy
+from instagram_data import User, Post
+from spoof import Proxies
 from bs4 import BeautifulSoup
 import requests
 import json
 import os
+import re
 
 
 class InstagramBot:
@@ -15,6 +17,7 @@ class InstagramBot:
         self.session = InstagramSession()
         self.proxies = Proxies()
         self.session.login()
+        self.users = []
 
     def fetch_tag_info(self,
                        proxy: bool = False,
@@ -128,6 +131,7 @@ class InstagramBot:
         return proxy
 
     def get_input(self, valid_options: set):
+        """Get user input, that must be an option in `valid_options`."""
         user_input = input()
         if user_input not in valid_options:
             print("Invalid selection! Please try again: ", end='')
@@ -135,8 +139,99 @@ class InstagramBot:
 
         return user_input
 
+    def create_users(self, *args, **kwargs):
+        # Get list of usernames to research
+        username = ""
+        usernames = []
+        # List where User objects will be stored, and return value
+        list_of_users = []
+        print("Please input usernames to pull.")
+        print("Type 'e' when you are finished entering usernames.")
+        while True:
+            # Get user input
+            username = "".join(input(">").casefold().split())
+
+            # Break out of loop if user wants to
+            if username == "e":
+                break
+
+            usernames.append(username)
+
+        # Pull each username in the above list
+        for user in usernames:
+            params = {
+                "username": user,
+            }
+
+            # Get username info
+            response = self.get(self.URLS["user-profile"], params=params, *args, **kwargs)
+            # If the user is found
+            if response.status_code == 200:
+                data = response.json()
+
+                # Create User
+                new_user = User(username=user, json_data=data)
+                list_of_users.append(new_user)
+
+                print(f"'{user} has been found!")
+            else:
+                # If the username does not exist
+                print(f"Username '{user}` not found!")
+
+        print("Account search complete.")
+
+        self.users = list_of_users
+
+    def get_post_data(self, url_code, *args, **kwargs):
+        media_id = self.extract_id_from_post(
+            # Get the html of the post page to ge the media_id
+            self.get(f"{self.URLS['user-post']}{url_code}", *args, **kwargs).text
+        )
+
+        # Return info about the post
+        return self.get(f"{self.URLS['user-post-api']}"
+                        f"{media_id}/"
+                        f"{self.URLS['user-post-api-end']}",
+                        *args,
+                        **kwargs).json()
+
+    @staticmethod
+    def extract_id_from_post(post_html: str) -> str:
+        """
+        Extracts the `media_id` from the html of an instagram post.
+
+        Format of the instagram post url to extract the html from should
+        be:
+        https://www.instagram.com/p/[POST_CODE]
+
+        Each post will have a shorthand code at the end.
+
+        Args:
+            post_html: Html code of the post page itself.
+
+        Returns:
+            `media_id` if found, else an empty string.
+        """
+        soup = BeautifulSoup(post_html, features='lxml')
+        media_id = ""
+        # The media_id will temporarily load under a script. Find it using
+        # regular expressions
+        for single_string in [script_strings for script in soup.find_all("script")
+                              for script_strings in script.stripped_strings]:
+            media_id = re.search('media_id":"(\d+)"', single_string)
+            # If the regular expression finds a match
+            if media_id:
+                # Set media_id to only the numbers in the match
+                media_id = media_id.group(1)
+                break
+
+        return media_id
+
 
 if __name__ == "__main__":
     drive = InstagramBot()
-    retval = drive.fetch_tag_info()
-    print(retval.keys())
+    # drive.create_users()
+    # for users in drive.users:
+    #     print(users)
+    post = Post(drive.get_post_data("CCeGDPkDWJ4"))
+    print(post)

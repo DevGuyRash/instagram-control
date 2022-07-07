@@ -267,7 +267,7 @@ class Proxies:
             for (ip, port, code, country, anonymity, google, https, last_checked) in table:
                 # Convert last_checked to seconds
                 time_to_add = 0
-                time = last_checked.string.split()
+                time = last_checked.script.split()
                 if "hour" in time or "hours" in time:
                     time_to_add += hour * int(time.pop(0))
                     time.pop(0)
@@ -280,13 +280,13 @@ class Proxies:
                     time_to_add += int(time.pop(0))
 
                 proxy = Proxy(
-                    ip=ip.string,
-                    port=port.string,
-                    code=code.string,
-                    country=country.string,
-                    anonymity=anonymity.string,
-                    google=google.string,
-                    https=https.string,
+                    ip=ip.script,
+                    port=port.script,
+                    code=code.script,
+                    country=country.script,
+                    anonymity=anonymity.script,
+                    google=google.script,
+                    https=https.script,
                     last_checked=str(time_to_add)
                 )
                 # Add to country and code dicts so that proxies can be
