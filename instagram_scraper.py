@@ -18,6 +18,7 @@ class InstagramBot:
         self.proxies = Proxies()
         self.session.login()
         self.users = []
+        self.posts = []
 
     def fetch_tag_info(self,
                        proxy: bool = False,
@@ -139,9 +140,20 @@ class InstagramBot:
 
         return user_input
 
-    def create_users(self, *args, **kwargs):
-        # Get list of usernames to research
-        username = ""
+    def create_users(self, *args, **kwargs) -> None:
+        """
+        Searches up usernames given by the user, on Instagram.
+
+        Will retrieve the json data per user given, and create a `User`
+        object for each. All users will be appended to `users`
+        attribute in a list.
+
+        Args:
+            *args: Any additional arguments to apply to the session GET.
+            **kwargs: Any additional arguments to apply to the session
+                GET.
+        """
+        # List of usernames to research
         usernames = []
         # List where User objects will be stored, and return value
         list_of_users = []
@@ -182,11 +194,53 @@ class InstagramBot:
 
         self.users = list_of_users
 
-    def get_post_data(self, url_code, *args, **kwargs):
-        media_id = self.extract_id_from_post(
-            # Get the html of the post page to ge the media_id
-            self.get(f"{self.URLS['user-post']}{url_code}", *args, **kwargs).text
-        )
+    def get_user_posts(self, *args, **kwargs):
+        """Retrieves the data for the posts the user provides."""
+        print(f"Input instagram post url codes, or full URLs "
+              f"(format: {self.URLS['user-post']}[URL_CODE]/)")
+        print("When you're finished inputting Posts to get, type 'e'")
+        posts_to_get = []
+        posts = []
+        while True:
+            # Create list of posts to inspect from userinput
+            user_post = "".join(input(">").split())
+            # If user is finished adding posts
+            if user_post == "e":
+                break
+
+            posts_to_get.append(user_post)
+
+        for user_post in posts_to_get:
+            # Only take the last part of the url, the actual post code.
+            url_code = re.search('/*(\w+)/*$', user_post)
+            if url_code:
+                url_code = url_code.group(1)
+                posts.append(Post(self.get_post_data(url_code, *args, **kwargs)))
+
+        self.posts = posts
+
+    def get_post_data(self, url_code: str, *args, **kwargs) -> dict:
+        """
+        Gets the `json` data from an instagram post.
+
+        Will accept any instagram post url code, which is normally
+        random letters and numbers:
+            https://www.instagram.com/p/[URL_CODE]/
+
+        Args:
+            url_code: Unique shortcode for the instagram post, usually
+                located near the end of the URL.
+            *args: Any additional arguments to apply to the session GET.
+            **kwargs: Any additional arguments to apply to the session
+                GET.
+
+        Returns:
+            `dict` containing all information about the instagram post.
+        """
+        # Get the html of the post page to ge the media_id
+        response = self.get(f"{self.URLS['user-post']}{url_code}", *args, **kwargs)
+        # Get media id from html
+        media_id = self.extract_id_from_post(response.text)
 
         # Return info about the post
         return self.get(f"{self.URLS['user-post-api']}"
@@ -230,8 +284,13 @@ class InstagramBot:
 
 if __name__ == "__main__":
     drive = InstagramBot()
-    # drive.create_users()
-    # for users in drive.users:
-    #     print(users)
-    post = Post(drive.get_post_data("CCeGDPkDWJ4"))
-    print(post)
+    drive.create_users()
+    for users in drive.users:
+        print(users.is_private)
+        print(type(users.id))
+        print()
+
+    # drive.get_user_posts()
+    # for post in drive.posts:
+    #     print(post)
+    #     print()

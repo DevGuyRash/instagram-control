@@ -12,6 +12,53 @@ class InstagramPage:
 
 
 class User:
+    """
+    Class meant to hold all info related to an instagram user.
+
+    Attributes:
+        username (str): Username of instagram account.
+        is_private (bool): Whether the instagram account is private or
+            not.
+        is_verified (bool): Whether the instagram account is verified or
+            not.
+        is_business_account (bool): Whether the instagram account is
+            a business account or not.
+        is_professional_account (bool): Whether the instagram account is
+            a business account or not.
+        name (str): Full name on the instagram account.
+        id (str): Unique ID of the instagram account.
+        facebook_id (str): Unique Facebook ID of the instagram account.
+        bio (str): Instagram Account's biography.
+        bio_entities (dict): Contains any hashtags or other accounts
+            referenced in the `bio`.
+        website (str): Website associated with the instagram account.
+        followers (str): How many followers the instagram account has.
+        following (str): How many people are following the instagram
+            account.
+        category (str): Which category instagram puts this account into.
+        pronouns (str): Custom pronouns the user has chosen for the
+            instagram account.
+        is_recent (bool): Whether the instagram account was recently
+            created or not.
+        total_timeline_posts (str): Total amount of posts on the
+            instagram account's main timeline.
+        total_video_posts (str): Total amount of video posts on the
+            instagram account's video timeline.
+        profile_pic (str): URL leading to the account's profile picture
+            resource.
+        profile_pic_hd (str): URL leading to a higher resolution picture
+            of the account's profile.
+        business_address (str): Business address associated with the
+            instagram account.
+        business_email (str): Business email associated with the
+            instagram account.
+        business_phone (str): Business phone number associated with the
+            instagram account.
+        business_category (str): Which category instagram puts this
+            account into, business-wise.
+        facebook_page (str): Facebook page associated with this
+            instagram account.
+    """
 
     def __init__(self, username: str, json_data: dict):  # TODO Create sub-folder
         with open(f"json/{username}.json", 'w', encoding='utf-8') as file:
@@ -69,8 +116,34 @@ class User:
 
 
 class Post:
+    """
+    Class containing all information about an Instagram post.
+
+    Attributes:
+        likes_and_views_disabled (bool): Whether the likes and view
+            counts are disabled or not.
+        comment_likes_enabled (bool): Whether comment likes are enabled
+            or not.
+        username (str): Username of the account that posted this post.
+        media_type (str): Format of the media in the post (different
+            numbers meaning photo, video, gif, etc.)
+        access_caption (str): The accessibility caption associated with
+            the post, if there is one.
+        users_tagged (list): List of users tagged in this post.
+        pk (str): Unique id associated with the post.
+        id (str): Unique id associated with the post.
+        url_id (str): Unique url id used to access this post, usually
+            found towards the end of the url when you are on the post.
+        created (str): Timestamp of when the post was created.
+        created_formatted (datetime): `Datetime` object of when the post
+            was created.
+        comments (str): Total amount of comments on the post.
+        likes (str): Total amount of likes on the post.
+        caption (Comment): The caption of the post, made by the poster.
+    """
 
     def __init__(self, json_data):
+        print(json_data)  # TODO FOR DEBUGGING
         # Create base index path to get the rest of the data from
         base = json_data["items"][0]
 
@@ -90,7 +163,7 @@ class Post:
             self.users_tagged = [username["user"]["username"]
                                  for username in base["usertags"]["in"]]
         else:
-            self.users_tagged = ""
+            self.users_tagged = []
 
         # Media ID's unique to this post
         self.pk = base.get('pk')
