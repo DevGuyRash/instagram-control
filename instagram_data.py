@@ -1,8 +1,6 @@
 import json
-from sessions import InstagramSession
+import os
 from datetime import datetime
-from bs4 import BeautifulSoup
-import re
 
 
 class InstagramPage:
@@ -14,6 +12,15 @@ class InstagramPage:
 class User:
     """
     Class meant to hold all info related to an instagram user.
+
+    Args:
+        username (str): Username of instagram account.
+        json_data (dict): Json data returned from Instagram api about
+            a user.
+            Api endpoint:
+                https://i.instagram.com/api/v1/users/web_profile_info/
+            Api params:
+                username (str): username of instagram account to search.
 
     Attributes:
         username (str): Username of instagram account.
@@ -60,12 +67,11 @@ class User:
             instagram account.
     """
 
-    def __init__(self, username: str, json_data: dict):  # TODO Create sub-folder
-        with open(f"json/{username}.json", 'w', encoding='utf-8') as file:
-            json.dump(json_data, file)
-
+    def __init__(self, username: str, json_data: dict):
         self.username = username
 
+        # Save json_data to a file for logging. Must be after username assignment.
+        self.save(json_data)
         # Create base index path to get the rest of the data from
         base = json_data["data"]["user"]
 
@@ -114,18 +120,47 @@ class User:
                f"Website: {self.website}\n" \
                f"Bio: {self.bio}"
 
+    def save(self, json_data):
+        # Create json folder, if it doesn't already exist.
+        try:
+            os.mkdir(os.path.abspath("json"))
+        except FileExistsError:
+            pass
+
+        # Create users folder, if it doesn't already exist.
+        try:
+            os.mkdir(f'{os.path.abspath("json")}/users')
+        except FileExistsError:
+            pass
+
+        # Save json data to a file.
+        with open(f"json/users/{self.username}.json", 'w', encoding='utf-8') as file:
+            json.dump(json_data, file)
+
 
 class Post:
     """
     Class containing all information about an Instagram post.
 
+    Save comments that are found on a post into a list, but does not
+    save all of them. It will only save the ones that are returned via
+    the instagram post api.
+
+    Args:
+        json_data (dict): Json data returned from Instagram api about
+            a user's post. The media id must be used inside the
+            endpoint. There are no parameters.
+            Api endpoint:
+                https://i.instagram.com/api/v1/media/`MEDIA_ID`/info
+
     Attributes:
-        likes_and_views_disabled (bool): Whether the likes and view
+        likes_and_views_disabled (bool): Whether the likes_total and view
             counts are disabled or not.
-        comment_likes_enabled (bool): Whether comment likes are enabled
+        comment_likes_enabled (bool): Whether comment likes_total are enabled
             or not.
         username (str): Username of the account that posted this post.
-        media_type (str): Format of the media in the post (different
+        name (str): Full name of the account that created the post.
+        media_type (int): Format of the media in the post (different
             numbers meaning photo, video, gif, etc.)
         access_caption (str): The accessibility caption associated with
             the post, if there is one.
@@ -134,30 +169,109 @@ class Post:
         id (str): Unique id associated with the post.
         url_id (str): Unique url id used to access this post, usually
             found towards the end of the url when you are on the post.
-        created (str): Timestamp of when the post was created.
+        created (int): Timestamp of when the post was created
         created_formatted (datetime): `Datetime` object of when the post
             was created.
-        comments (str): Total amount of comments on the post.
-        likes (str): Total amount of likes on the post.
+        comments_total (str): Total amount of comments on the post.
+        likes_total (str): Total amount of likes_total on the post.
+        comments (list[Comment]): `list` of comments contained inside
+            the post.
         caption (Comment): The caption of the post, made by the poster.
     """
 
     def __init__(self, json_data):
-        print(json_data)  # TODO FOR DEBUGGING
         # Create base index path to get the rest of the data from
-        base = json_data["items"][0]
+        try:
+            base = json_data["items"][0]
+        except KeyError as error:
+            # If json_data is not a valid instagram json from the api, it won't
+            # have "items" key. So it's invalid.
+            print("Invalid instagram post, skipping...")
+            return
+
+        # url_id and username must be assigned before saving.
+        # Use the url_id with the user-post link in urls to go to the post.
+        self.url_id = base.get('code')
+
+        # Poster info
+        self.username = base["user"]["username"]
+        self.name = base["user"]["full_name"]
+
+        # Save json_data to a file for logging
+        self.save(json_data)
+
+        # Post media info - Important as some attributes will or won't be
+        # available depending on the type.
+        self.media_type = base.get('media_type')
+        self.media_count = 1
+        self.media = []
+        # Media ID's unique to this post
+        self.pk = base.get('pk')
+        self.id = base.get('id')
+
+        # For video posts
+        self.views_total = base.get("view_count")
+        self.duration = base.get("video_duration")
+
+        if self.media_type == 8:
+            # Carousel multi video / photo post
+            self.media_count = base['carousel_media_count']
+            for media in base['carousel_media']:
+                # Create base index routes
+                media_type = media["media_type"]
+                if media_type == 1:
+                    # The current media is a photo
+                    media_info = media["image_versions2"]["candidates"][0]
+                else:
+                    # The current media is a video
+                    media_info = media["video_versions"][0]
+
+                # Create Media object and append to media list
+                self.media.append(Media(
+                    media_type=media_type,
+                    pk=media['pk'],
+                    original_width=media['original_width'],
+                    original_height=media['original_height'],
+                    width=media_info["width"],
+                    height=media_info["height"],
+                    url=media_info["url"],
+                    thumbnail_url=media['image_versions2']['candidates'][0]['url'],
+                    duration=media.get('video_duration'),
+                    dash_manifest=media.get('video_dash_manifest'),
+                    codec=media.get('video_codec'),
+                ))
+        else:
+            # Single photo / video post
+            if self.media_type == 1:
+                # Image
+                media_info = base['image_versions2']['candidates'][0]
+            else:
+                # Video
+                media_info = base['video_versions'][0]
+
+            # Create Media object and append to media list
+            self.media.append(Media(
+                media_type=self.media_type,
+                pk=self.pk,
+                original_width=base['original_width'],
+                original_height=base['original_height'],
+                width=media_info["width"],
+                height=media_info["height"],
+                url=media_info["url"],
+                thumbnail_url=base['image_versions2']['candidates'][0]['url'],
+                duration=base.get('video_duration'),
+                dash_manifest=base.get('video_dash_manifest'),
+                codec=base.get('video_codec'),
+            ))
 
         # Perform checks on post to verify data retrieval
         self.likes_and_views_disabled = base.get('like_and_view_counts_disabled')
-        self.comment_likes_enabled = base.get('comment_likes_enabled')
+        self.comment_likes_enabled = base.get('comment_likes_enabled')  # Not in multi-video
 
-        # Basic post info
-        self.username = base["user"]["username"]
-        self.media_type = base.get('media_type')
-
-        # These keys aren't always present
+        # Only present in photos (media type 1)
         self.access_caption = base.get('accessibility_caption')
 
+        # Only found in non-carousel posts (media type 8 are carousel)
         usertags = base.get('usertags')
         if usertags:
             self.users_tagged = [username["user"]["username"]
@@ -165,65 +279,250 @@ class Post:
         else:
             self.users_tagged = []
 
-        # Media ID's unique to this post
-        self.pk = base.get('pk')
-        self.id = base.get('id')
-
-        # Use the url_id with the user-post link in urls to go to the post.
-        self.url_id = base.get('code')
-
         # Creation time
         self.created = base.get('taken_at')
         self.created_formatted = datetime.fromtimestamp(self.created)
 
         # Post metrics
-        self.comments = base.get("comment_count")
-        self.likes = base.get("like_count")
+        self.likes_total = base.get("like_count")
+        # Will not appear if comments are disabled
+        self.comments_total = base.get("comment_count")
 
+        # Check that the post has user likes, and if so save them to the
+        # instance of the Post object using a list comprehension.
+        post_likes = base.get("likers")
+        if post_likes:
+            self.likes = [(user["pk"], user["username"], user["full_name"]) for user in post_likes]
+
+        # Comments
+        self.comments_disabled = base.get("comments_disabled")
+
+        # Check that the post has comments, and if so save them to the
+        # instance of the Post object using a list comprehension.
+        if not self.comments_disabled:
+            self.comments = [Comment(
+                username=comment['user']['username'],
+                name=comment['user']['full_name'],
+                text=comment['text'],
+                created=comment['created_at'],
+                pk=comment['pk'],
+                user_id=comment['user_id'],
+                media_type=comment['type'],
+                likes_total=comment['comment_like_count']
+            )
+                for comment in base['comments']
+            ]
+        else:
+            self.comments = []
+
+        # Post caption
         caption = base.get('caption')
-
         # Create Comment object from caption to display organized info
         if caption:
             self.caption = Comment(
                 username=self.username,
+                name=self.name,
+                pk=self.pk,
+                user_id=self.id,
                 text=caption.get('text'),
-                created=caption.get('created_at_utc')
+                created=caption.get('created_at_utc'),
             )
         else:
-            self.caption = ""
-
-        # Save the json file
-        with open(f"json/{self.username}_post_{self.pk}.json", 'w', encoding='utf-8') as file:
-            json.dump(json_data, file)
+            # If there is no caption, then create an empty Comment object to
+            # preserve polymorphism.
+            self.caption = Comment(
+                username=self.username,
+                name=self.name,
+                text="",
+                created=0
+            )
 
     def __str__(self):
-        return f"ID: {self.id}\n" \
-               f"URL_ID: {self.url_id}\n" \
-               f"By: {self.username}\n" \
-               f"Caption: {self.caption}\n" \
-               f"Total Likes: {self.likes}\n" \
-               f"Total Comments: {self.comments}\n" \
-               f"Created on: {self.created_formatted}"
+        return f"Post ID: {self.id}\n" \
+               f"Post URL_ID: {self.url_id}\n" \
+               f"Post By: {self.username}\n" \
+               f"Post Caption: {self.caption.text}\n" \
+               f"Post Total Likes: {self.likes_total}\n" \
+               f"Post Total Comments: {self.comments_total}\n" \
+               f"Post Created on: {self.created_formatted}"
+
+    def save(self, json_data):
+        # Create json folder, if it doesn't already exist.
+        try:
+            os.mkdir(os.path.abspath("json"))
+        except FileExistsError:
+            pass
+
+        # Create posts folder, if it doesn't already exist.
+        try:
+            os.mkdir(f'{os.path.abspath("json")}/posts')
+        except FileExistsError:
+            pass
+
+        # Save the json file
+        with open(f"json/posts/{self.username}_post_{self.url_id}.json", 'w',
+                  encoding='utf-8') as file:
+            json.dump(json_data, file)
 
 
 class Comment:
+    """
+    Class to contain info about an instagram comment.
+
+    Args:
+        username (str): Username of the account that posted the comment.
+        name (str): Full name of the account that posted the comment.
+        text (str): The text of the comment
+        created (int): Timestamp of when the comment was created.
+        pk (str): Unique id associated with the comment.
+        user_id (int): Unique id associated with the comment author.
+        media_type (int): Format of the media in the comment. The number
+            represents video, text, image, etc.
+        likes_total (int): Total amount of likes_total on the comment.
+
+    Attributes:
+        username (str): Username of the account that posted the comment.
+        name (str): Full name of the account that posted the comment.
+        text (str): The text of the comment
+        created (int): Timestamp of when the comment was created.
+        created_formatted (datetime): `Datetime` object of when the
+            comment was created.
+        pk (str): Unique id associated with the comment.
+        user_id (int): Unique id associated with the comment author.
+        media_type (int): Format of the media in the comment. The number
+            represents video, text, image, etc.
+        likes_total (int): Total amount of likes_total on the comment.
+    """
 
     def __init__(self,
                  username: str,
-                 text,
+                 name: str,
+                 text: str,
                  created: int,
-                 likes: int = 0,
+                 pk: str = "",
+                 user_id: int = 0,
+                 media_type: int = 0,
+                 likes_total: int = 0,
                  ):
         self.username = username
+        self.name = name
         self.text = text
         self.created = created
         self.created_formatted = datetime.fromtimestamp(self.created)
-        self.likes = likes
+        self.pk = pk
+        self.user_id = user_id
+        self.media_type = media_type
+        self.likes_total = likes_total
 
     def __str__(self):
-        return f"{self.text}\n" \
-               f"-{self.username}, at {self.created_formatted}\n" \
-               f"Likes: {self.likes or 'Doesnt apply'}"
+        return f"Comment: {self.text}\n" \
+               f"Comment By {self.name} / @{self.username}, " \
+               f"on {self.created_formatted}\n" \
+               f"Comment Likes: {self.likes_total or 'Does not apply to captions.'}"
+
+
+class Media:
+    """
+    Class to contain media info such as type, dimensions, and urls.
+
+    Args:
+        media_type (int): Format of media:
+            0 = Text
+            1 = Photo
+            2 = Video
+            8 = carousel
+        pk (str): Unique id associated with the media.
+        original_width (int): Width of the photo or video before
+            instagram compressed it.
+        original_height (int): Height of the photo or video before
+            instagram compressed it.
+        width (int): Width of the photo or video.
+        height (int): Height of the photo or video.
+        url (str): Url leading to where the media is stored.
+        thumbnail_url (str): Url leading to where the video thumbnail is
+            stored when the media is a video.
+
+    Attributes:
+        media_type (int): Format of media:
+            0 = Text
+            1 = Photo
+            2 = Video
+            8 = carousel
+        type (str): `Photo` if `media_type` is 1, or `Video` if
+            `media_type`is 2.
+        id (str): Unique id associated with the media.
+        pk (str): Unique id associated with the media.
+        original_width (int): Width of the photo or video before
+            instagram compressed it.
+        original_height (int): Height of the photo or video before
+            instagram compressed it.
+        width (int): Width of the photo or video.
+        height (int): Height of the photo or video.
+        url (str): Url leading to where the media is stored.
+        thumbnail_url (str): Url leading to video thumbnail if it's a
+            video, else it leads to `url`.
+        duration (float): Length of video. If it's a photo, it will
+            default to `0`.
+        codec (str): Codec of the video. Does not apply to a photo.
+        dash_manifest (str): Information specific to a video. Does not
+            apply to a photo.
+        has_audio (bool): Whether a video has audio or not. Does not
+            apply to a photo.
+    """
+
+    def __init__(self,
+                 media_type: int,
+                 pk: str,
+                 original_width: int,
+                 original_height: int,
+                 width: int,
+                 height: int,
+                 url: str,
+                 thumbnail_url: str = "",
+                 duration: float = 0.0,
+                 codec: str = "",
+                 dash_manifest: str = "",
+                 has_audio: bool = False,
+                 ):
+        self.media_type = media_type
+        # ID is the same as pk here
+        self.id = pk
+        self.pk = pk
+        self.original_width = original_width
+        self.original_height = original_height
+        self.width = width
+        self.height = height
+        self.url = url
+        self.duration = duration
+        self.codec = codec
+        self.dash_manifest = dash_manifest
+        self.has_audio = has_audio
+
+        # Type specific changes:
+        if self.media_type == 1:
+            # Photo
+            self.type = "Photo"
+            self.thumbnail_url = self.url
+        else:
+            # Video
+            self.type = "Video"
+            self.thumbnail_url = thumbnail_url
+
+    def __str__(self):
+        if self.media_type == 1:
+            return f"ID: {self.id}\n" \
+                   f"Media Type: {self.media_type} | {self.type}\n" \
+                   f"Dimensions: {self.width}x{self.height}\n" \
+                   f"URL: {self.url}\n"
+        else:
+            return f"ID: {self.id}\n" \
+                   f"Media Type: {self.media_type} | {self.type}\n" \
+                   f"Dimensions: {self.width}x{self.height}\n" \
+                   f"URL: {self.url}\n" \
+                   f"Thumbnail: {self.thumbnail_url}\n" \
+                   f"Duration: {self.duration}\n" \
+                   f"Audio: {self.has_audio}\n" \
+                   f"Codec: {self.codec}"
 
 
 class Tag:
@@ -231,4 +530,13 @@ class Tag:
 
 
 if __name__ == "__main__":
-    pass
+    # filename = "json/posts/mutli_image_austinjkaufman_post_CCeGDPkDWJ4.json"
+    # filename = "json/posts/single_image_austinjkaufman_post_BuhmB7Ih1J4.json"
+    filename = "json/posts/mutli_video_austinjkaufman_post_CfvfiieOjXz.json"
+    # filename = "json/posts/single_video_sony_post_Cfhkjtespv6.json"
+    with open(filename, encoding='utf-8') as file:
+        post = Post(json.load(file))
+
+    for item in post.media:
+        print(item)
+        print()

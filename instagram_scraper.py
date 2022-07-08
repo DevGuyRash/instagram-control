@@ -212,7 +212,7 @@ class InstagramBot:
 
         for user_post in posts_to_get:
             # Only take the last part of the url, the actual post code.
-            url_code = re.search('/*(\w+)/*$', user_post)
+            url_code = re.search('/*([a-zA-Z0-9-_]+)/*$', user_post)
             if url_code:
                 url_code = url_code.group(1)
                 posts.append(Post(self.get_post_data(url_code, *args, **kwargs)))
@@ -284,13 +284,13 @@ class InstagramBot:
 
 if __name__ == "__main__":
     drive = InstagramBot()
-    drive.create_users()
-    for users in drive.users:
-        print(users.is_private)
-        print(type(users.id))
-        print()
-
-    # drive.get_user_posts()
-    # for post in drive.posts:
-    #     print(post)
+    # drive.create_users()
+    # for users in drive.users:
+    #     print(users.is_private)
+    #     print(type(users.id))
     #     print()
+
+    drive.get_user_posts()
+    for post in drive.posts:
+        print(post)
+        print(post.comments)
