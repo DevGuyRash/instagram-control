@@ -530,13 +530,4 @@ class Tag:
 
 
 if __name__ == "__main__":
-    # filename = "json/posts/mutli_image_austinjkaufman_post_CCeGDPkDWJ4.json"
-    # filename = "json/posts/single_image_austinjkaufman_post_BuhmB7Ih1J4.json"
-    filename = "json/posts/mutli_video_austinjkaufman_post_CfvfiieOjXz.json"
-    # filename = "json/posts/single_video_sony_post_Cfhkjtespv6.json"
-    with open(filename, encoding='utf-8') as file:
-        post = Post(json.load(file))
-
-    for item in post.media:
-        print(item)
-        print()
+    pass
