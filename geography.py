@@ -200,4 +200,5 @@ class Geography:
 
 
 if __name__ == "__main__":
-    pass
+    test = Geography()
+
