@@ -27,11 +27,25 @@
   "proxies": {
     "base": "https://free-proxy-list.net/"
   },
-  "geoapify": {
-    "base": "https://api.geoapify.com/v1/",
-    "base-2": "https://api.geoapify.com/v2/",
-    "geocode": "geocode/search",
-    "reverse-geocode": "geocode/reverse",
-    "ip-info": "ipinfo"
+  "geolocation": {
+    "geoapify": {
+      "base": "https://api.geoapify.com/v1/",
+      "base-2": "https://api.geoapify.com/v2/",
+      "geocode": "geocode/search",
+      "reverse-geocode": "geocode/reverse",
+      "ip-info": "ipinfo"
+    },
+    "countriesnow": {
+      "documentation": "https://documenter.getpostman.com/view/1134062/T1LJjU52",
+      "base": "https://countriesnow.space/api/v0.1/countries/",
+      "pop-in-city": "population/cities",
+      "pop-in-cities-filter": "population/cities/filter",
+      "pop-in-country": "population",
+      "pop-in-countries-filter": "population/filter",
+      "states-in-country": "states",
+      "cities-in-country": "cities",
+      "cities-in-state": "state/cities",
+      "dial-codes-in-country": "codes"
+    }
   }
 }

@@ -195,7 +195,7 @@ class InstagramSession(UserSession):
                                               f"{os.getenv('INSTA_PASSWORD')}"
 
     def _update_headers(self):
-        """Updates session headers with `_insta_headers`."""
+        """Updates session _headers with `_insta_headers`."""
         self.headers.update(self._insta_headers)
 
     def check_if_logged_in(self) -> bool:
@@ -236,7 +236,7 @@ class InstagramSession(UserSession):
             # Makes sure that the timestamp and csrf_token are current
             self._update_csrf_token()
             self._update_payload()
-            # Update headers with new csrf_token info
+            # Update _headers with new csrf_token info
             self._update_headers()
 
             # Log in to the server
@@ -262,7 +262,7 @@ class InstagramSession(UserSession):
                     print("Login successful.")
                     print("New cookie has been created and saved")
                     self._update_csrf_token(response.cookies['csrftoken'])
-                    # Update headers with new csrf_token info
+                    # Update _headers with new csrf_token info
                     self._update_headers()
                     # Save cookies to file for future use
                     self._save_cookies(response)
@@ -273,7 +273,7 @@ class InstagramSession(UserSession):
                     print("\t• Username\n\t• Password")
                     return False
         else:
-            # If a cookie is being used for the session, update the headers and
+            # If a cookie is being used for the session, update the _headers and
             # use the csrf_token of the cookie
             self._update_csrf_token(self.cookies['csrftoken'])
             self._update_headers()

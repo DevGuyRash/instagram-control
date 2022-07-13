@@ -121,7 +121,7 @@ class UserAgents:
 
     def list_query_options(self, category: int = -1) -> None:
         """
-        Lists valid query parameters for whatismybrowser database.
+        Lists valid query _parameters for whatismybrowser database.
 
         `category` is used for recursion and should be left blank at all
         times.
@@ -207,7 +207,7 @@ class Proxies:
                            "Country", "Anonymity", "Google",
                            "Https", "Last Checked"]
             writer = csv.writer(file)
-            # Create headers in file
+            # Create _headers in file
             writer.writerow(field_names)
             for proxy in proxy_list:
                 # Get list of info about each proxy and write it to csv
@@ -457,7 +457,7 @@ class Proxies:
 
         elif not proxies:
             # If no proxies have all the `attributes`, an index error is raised.
-            print("No proxies match the given parameters:")
+            print("No proxies match the given _parameters:")
             for attr_name, proxy_value in attributes.items():
                 print(f"{attr_name}: {proxy_value}")
 

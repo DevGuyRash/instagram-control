@@ -149,7 +149,7 @@ class Post:
     Args:
         json_data (dict): Json data returned from Instagram api about
             a user's post. The media id must be used inside the
-            endpoint. There are no parameters.
+            endpoint. There are no _parameters.
             Api endpoint:
                 https://i.instagram.com/api/v1/media/`MEDIA_ID`/info
 
