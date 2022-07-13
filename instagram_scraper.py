@@ -284,13 +284,9 @@ class InstagramBot:
 
 if __name__ == "__main__":
     drive = InstagramBot()
-    # drive.create_users()
-    # for users in drive.users:
-    #     print(users.is_private)
-    #     print(type(users.id))
-    #     print()
+    drive.create_users()
 
-    drive.get_user_posts()
-    for post in drive.posts:
-        print(post)
-        print(post.comments)
+    # drive.get_user_posts()
+    # for post in drive.posts:
+    #     print(post)
+    #     print(post.comments)

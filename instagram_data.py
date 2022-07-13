@@ -525,9 +525,29 @@ class Media:
                    f"Codec: {self.codec}"
 
 
+class Location:
+    """Class to contain information about a geographical location."""
+
+    def __init__(self,
+                 lat: float,
+                 lng: float,
+                 name: str = "",
+                 city: str = "",
+                 address: str = "",
+                 ):
+        pass
+
+
 class Tag:
     pass
 
 
 if __name__ == "__main__":
-    pass
+    filename = "json/posts/mutli_video_austinjkaufman_post_CfvfiieOjXz.json"
+    # filename = "json/posts/single_video_sony_post_Cfhkjtespv6.json"
+    with open(filename, encoding='utf-8') as file:
+        post = Post(json.load(file))
+
+    for item in post.media:
+        print(item)
+        print()
