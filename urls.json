@@ -22,9 +22,16 @@
       "software-type": "https://developers.whatismybrowser.com/useragents/explore/software_type_specific/",
       "hardware-type": "https://developers.whatismybrowser.com/useragents/explore/hardware_type_specific/",
       "layout-engine": "https://developers.whatismybrowser.com/useragents/explore/layout_engine_name/"
-      }
-    },
+    }
+  },
   "proxies": {
-      "base": "https://free-proxy-list.net/"
+    "base": "https://free-proxy-list.net/"
+  },
+  "geoapify": {
+    "base": "https://api.geoapify.com/v1/",
+    "base-2": "https://api.geoapify.com/v2/",
+    "geocode": "geocode/search",
+    "reverse-geocode": "geocode/reverse",
+    "ip-info": "ipinfo"
   }
 }
