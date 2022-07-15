@@ -1,7 +1,8 @@
+from dotenv import load_dotenv
+from user_input import UserInput
 import requests
 import os
 import json
-from dotenv import load_dotenv
 
 
 class Location:
@@ -332,11 +333,51 @@ class Geography:
             print(f"Error: {response.json()['message']}")
             return False
 
-    def list_united_states(self) -> None:
+    def get_united_states(self) -> list:
+        """Returns all States and their codes as `tuple`s in a `list`."""
+        united_states = []
         for state in self.get_states_in_country("United States")['states']:
-            print(f"{state['name']} | {state['state_code']}")
+            united_states.append((state['name'], state['state_code']))
+
+        return united_states
+
+    def user_defined_data(self) -> [list, dict]:
+        """
+        Prints out methods as options for user, and runs selected one.
+
+        User chooses which method they want, inputs the required
+        parameters, then receives the data from the method.
+
+        This method is deprecated.
+
+        Returns:
+            Information about the requested city, state, or country
+            using the selected method.
+        """
+        options = {
+            "City population": (["city"], self.get_city_population),
+            "Cites in a country": (["country"], self.get_cities_in_country),
+            "Country population": (["country"], self.get_country_population),
+            "States in a country": (["country"], self.get_states_in_country),
+            "Cites in a state": (["country", "state"], self.get_cities_in_state),
+            "Dial codes in a country": (["country"], self.get_dial_codes_in_country),
+            "All states in United States": ([], self.get_united_states),
+        }
+        user_choice = UserInput.create_menu(options, exit_=True)
+        if user_choice == "exit":
+            return None
+
+        selected_function = options[user_choice]
+
+        # Cycle through all parameters and get user input for them
+        parameters = {}
+        for parameter in selected_function[0]:
+            parameters[parameter] = (input(f"Please input a {parameter}: "))
+            
+        return selected_function[1](**parameters)
 
 
 if __name__ == "__main__":
     test = Geography()
-    test.list_united_states()
+    print(test.get_cities_in_state("United States", "California"))
+

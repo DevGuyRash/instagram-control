@@ -1,3 +1,6 @@
+from bs4 import BeautifulSoup
+from file_manager import FileManager
+import re
 import json
 import os
 from datetime import datetime
@@ -121,17 +124,7 @@ class User:
                f"Bio: {self.bio}"
 
     def save(self, json_data):
-        # Create json folder, if it doesn't already exist.
-        try:
-            os.mkdir(os.path.abspath("json"))
-        except FileExistsError:
-            pass
-
-        # Create users folder, if it doesn't already exist.
-        try:
-            os.mkdir(f'{os.path.abspath("json")}/users')
-        except FileExistsError:
-            pass
+        FileManager.create_dir("json/users")
 
         # Save json data to a file.
         with open(f"json/users/{self.username}.json", 'w', encoding='utf-8') as file:
@@ -183,7 +176,7 @@ class Post:
         # Create base index path to get the rest of the data from
         try:
             base = json_data["items"][0]
-        except KeyError as error:
+        except KeyError:
             # If json_data is not a valid instagram json from the api, it won't
             # have "items" key. So it's invalid.
             print("Invalid instagram post, skipping...")
@@ -359,6 +352,7 @@ class Post:
         except FileExistsError:
             pass
 
+        FileManager.create_dir("json/posts")
         # Save the json file
         with open(f"json/posts/{self.username}_post_{self.url_id}.json", 'w',
                   encoding='utf-8') as file:
@@ -525,21 +519,184 @@ class Media:
                    f"Codec: {self.codec}"
 
 
-class Location:
-    """Class to contain information about a geographical location."""
+class UserManager:
 
-    def __init__(self,
-                 lat: float,
-                 lng: float,
-                 name: str = "",
-                 city: str = "",
-                 address: str = "",
-                 ):
-        pass
+    def __init__(self, session, username):
+        with open("urls.json", encoding='utf-8') as f:
+            self.URLS = json.load(f)["instagram"]
+
+        self.session = session
+
+    def create_users(self, user: "", *args, **kwargs) -> list:
+        """
+        Searches up usernames given by the user, on Instagram.
+
+        Will retrieve the json data per user given, and create a `User`
+        object for each. All users will be appended to `users`
+        attribute in a list.
+
+        Args:
+            user: Single username to search up, rather than getting
+                input.
+            *args: Any additional arguments to apply to the session GET.
+            **kwargs: Any additional arguments to apply to the session
+                GET.
+        """
+        # List where User objects will be stored, and return value
+        list_of_users = []
+        if not user:
+            # List of usernames to research
+            usernames = []
+            print("Please input usernames to pull.")
+            print("Type 'e' when you are finished entering usernames.")
+            while True:
+                # Get user input
+                username = "".join(input(">").casefold().split())
+
+                # Break out of loop if user wants to
+                if username == "e":
+                    break
+
+                usernames.append(username)
+
+        else:
+            # Single user is to be searched up
+            usernames = [user]
+
+        for user in usernames:
+            # Pull each username in the above list
+            params = {
+                "username": user,
+            }
+
+            # Get username info
+            response = self.session.get(self.URLS["user-profile"], params=params, *args, **kwargs)
+            # If the user is found
+            if response.status_code == 200:
+                data = response.json()
+
+                # Create User
+                new_user = User(username=user, json_data=data)
+                list_of_users.append(new_user)
+
+                print(f"'{user} has been found!")
+            else:
+                # If the username does not exist
+                print(f"Username '{user}` not found!")
+
+        print("Account search complete.")
+
+        return list_of_users
 
 
-class Tag:
-    pass
+class PostManager:
+
+    with open("urls.json", encoding='utf-8') as f:
+        URLS = json.load(f)["instagram"]
+
+    def __init__(self, session, url_code):
+        self.session = session
+        self.posts = []
+
+    def get_user_posts(self, *args, **kwargs):
+        """Retrieves the data for the posts the user provides."""
+        print(f"Input instagram post url codes, or full URLs "
+              f"(format: {PostManager.URLS['user-post']}[URL_CODE]/)")
+        print("When you're finished inputting Posts to get, type 'e'")
+        posts_to_get = []
+        posts = []
+        while True:
+            # Create list of posts to inspect from userinput
+            user_post = "".join(input(">").split())
+            # If user is finished adding posts
+            if user_post == "e":
+                break
+
+            posts_to_get.append(user_post)
+
+        for user_post in posts_to_get:
+            # Only take the last part of the url, the actual post code.
+            url_code = re.search('/*([a-zA-Z0-9-_]+)/*$', user_post)
+            if url_code:
+                # A match was found, so get the match
+                url_code = url_code.group(1)
+                converted_post = Post(self.get_post_data(url_code, *args, **kwargs))
+                # Convert all usernames found in post likes into User objects.
+                # if converted_post.likes:
+                #     converted_post.likes = [user for user in converted_post.likes]
+
+                posts.append(converted_post)
+
+        self.posts = posts
+
+    def get_post_data(self, url_code: str, *args, **kwargs) -> dict:
+        """
+        Gets the `json` data from an instagram post.
+
+        Will accept any instagram post url code, which is normally
+        random letters and numbers:
+            https://www.instagram.com/p/[URL_CODE]/
+
+        Args:
+            url_code: Unique shortcode for the instagram post, usually
+                located near the end of the URL.
+            *args: Any additional arguments to apply to the session GET.
+            **kwargs: Any additional arguments to apply to the session
+                GET.
+
+        Returns:
+            `dict` containing all information about the instagram post.
+        """
+        # Get the html of the post page to ge the media_id
+        response = self.session.get(f"{self.URLS['user-post']}{url_code}", *args, **kwargs)
+        # Get media id from html
+        media_id = self.extract_id_from_post(response.text)
+
+        # Return info about the post
+        return self.session.get(f"{self.URLS['user-post-api']}"
+                                f"{media_id}/"
+                                f"{self.URLS['user-post-api-end']}",
+                                *args,
+                                **kwargs).json()
+
+    @staticmethod
+    def extract_id_from_post(post_html: str) -> str:
+        """
+        Extracts the `media_id` from the html of an instagram post.
+
+        Format of the instagram post url to extract the html from should
+        be:
+        https://www.instagram.com/p/[POST_CODE]
+
+        Each post will have a shorthand code at the end.
+
+        Args:
+            post_html: Html code of the post page itself.
+
+        Returns:
+            `media_id` if found, else an empty string.
+        """
+        soup = BeautifulSoup(post_html, features='lxml')
+        media_id = ""
+        # The media_id will temporarily load under a script. Find it using
+        # regular expressions
+        for single_string in [script_strings for script in soup.find_all("script")
+                              for script_strings in script.stripped_strings]:
+            media_id = re.search('media_id":"(\d+)"', single_string)
+            # If the regular expression finds a match
+            if media_id:
+                # Set media_id to only the numbers in the match
+                media_id = media_id.group(1)
+                break
+
+        return media_id
+
+
+class Hashtag:
+
+    def __init__(self, hashtag):
+        self.text = hashtag
+        # self.geo_checker = Geometry()
 
 
 if __name__ == "__main__":

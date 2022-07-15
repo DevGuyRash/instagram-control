@@ -1,9 +1,11 @@
+from dotenv import load_dotenv
+from bs4 import BeautifulSoup
+from user_input import UserInput
+from file_manager import FileManager
 import csv
 import requests
 import os
-from dotenv import load_dotenv
 import json
-from bs4 import BeautifulSoup
 import random
 
 
@@ -91,10 +93,7 @@ class UserAgents:
                 to pull all data.
         """
         # Create directory if it doesn't already exist
-        try:
-            os.mkdir(os.path.abspath(self.filename))
-        except FileExistsError:
-            pass
+        FileManager.create_dir(self.filename)
 
         # If only one type is being requested to be pulled
         if selection:
@@ -107,60 +106,58 @@ class UserAgents:
                 # Retrieve the requested type
                 print(f"Attempting to retrieve info for: {selection}")
                 self._get_query_options_data(selection, link)
-                filepath = os.path.realpath(f"{self.filename}/{self.filename}_{selection}_query_params.csv")
+                filepath = os.path.realpath(f"{self.filename}/{self.filename}_"
+                                            f"{selection}_query_params.csv")
                 print(f"File successfully created in:\n{filepath}")
         else:
             # Cycle through each link
             for category_name, link in self._URLS["query-types"].items():
                 print(f"Attempting to retrieve info for: {category_name}")
                 self._get_query_options_data(category_name, link)
-                filepath = os.path.realpath(f"{self.filename}/{self.filename}_{category_name}_query_params.csv")
+                filepath = os.path.realpath(f"{self.filename}/{self.filename}_"
+                                            f"{category_name}_query_params.csv")
                 print(f"File successfully created in:\n{filepath}")
 
         print("All files have been created successfully")
 
-    def list_query_options(self, category: int = -1) -> None:
+    def list_query_options(self, selection: str = None) -> None:
         """
-        Lists valid query _parameters for whatismybrowser database.
+        Lists valid query parameters for whatismybrowser database.
 
-        `category` is used for recursion and should be left blank at all
+        `selection` is used for recursion and should be left blank at all
         times.
 
         Prints out a menu of available search query categories to list.
         If one is not available, it will be retrieved.
 
         Args:
-            category: Used for recursion. When a selected option is not
+            selection: Used for recursion. When a selected option is not
                 found, the file will be created and this method will be
                 run again with `category` being the user choice.
         """
         # Create a choice menu of the different query types
-        urls = {index: category_name for index, category_name in enumerate(self._URLS["query-types"])}
+        urls = self._URLS["query-types"]
 
-        if category >= 0:
+        if selection:
             # Method was run via recursion, so no input is required
-            choice = category
+            choice = selection
         else:
-            # Print out choice menu
-            for index, category_name in urls.items():
-                print(f"{index + 1}. {category_name}")
-
-            # Get user choice
-            choice = int(input("Please input the number of the type you'd like to list: ")) - 1
+            choice = UserInput.create_menu(urls)
 
         # Check that the choice is valid
         try:
-            filepath = f"{self.filename}/{self.filename}_{urls[choice]}_query_params.csv"
+            filepath = f"{self.filename}/{self.filename}_{choice}_query_params.csv"
         except KeyError:
             print("Invalid number selection")
         else:
+            # File was found
             try:
                 # Open file selected and list all lines in it
                 with open(filepath, encoding='utf-8') as file:
                     print()  # Spacer for text
                     print("Retrieving info:")
                     # Display category and format
-                    print("*" * 20, urls[choice], "*" * 20)
+                    print("*" * 20, choice, "*" * 20)
                     print("Format: Valid Param | Related User-Agents")
                     # Skip Headers
                     file.readline()
@@ -172,8 +169,8 @@ class UserAgents:
             except FileNotFoundError:
                 # If file is not found, pull only that file
                 print("File not found. Creating required files...")
-                self.get_query_options_data(selection=urls[choice])
-                self.list_query_options(category=choice)
+                self.get_query_options_data(selection=choice)
+                self.list_query_options(selection=choice)
 
 
 class Proxies:
@@ -192,16 +189,18 @@ class Proxies:
         with open("urls.json", encoding='utf-8') as f:
             self._URLS = json.load(f)["proxies"]
 
+        FileManager.create_dir("proxies")
+
     def _generate_simple_proxies_file(self, proxy_list: list) -> None:
         """Saves a csv file of only proxies/ports"""
-        with open(f"simple_{self.filename}", "w", encoding='utf-8', newline='') as file:
+        with open(f"proxies/simple_{self.filename}", "w", encoding='utf-8', newline='') as file:
             writer = csv.writer(file)
             # Will create a single row of all proxies/ports combinations
             writer.writerow(proxy_list)
 
     def _generate_proxies_file(self, proxy_list: list) -> None:
         """Saves a csv file of the most recent proxies and their info."""
-        with open(self.filename, "w", encoding='utf-8', newline='') as file:
+        with open(f"proxies/{self.filename}", "w", encoding='utf-8', newline='') as file:
             # Create field names for csv file
             field_names = ["IP Address", "Port", "Code",
                            "Country", "Anonymity", "Google",
@@ -211,10 +210,11 @@ class Proxies:
             writer.writerow(field_names)
             for proxy in proxy_list:
                 # Get list of info about each proxy and write it to csv
-                writer.writerow(proxy.get_details())
+                writer.writerow(proxy.__dict__.values())
 
     def get_proxies(self,
                     simple: bool = False,
+                    limit: int = 10,
                     save: bool = False,
                     single: bool = False) -> [list | object]:
         """
@@ -230,6 +230,7 @@ class Proxies:
             simple: `bool` that determines if only proxies and their
                 ports are used, or if more detailed info is
                 used per proxy.
+            limit: Number of results to return when `single` is False.
             save: `bool` that determines whether to save the proxies
                 into a file.
             single: `bool` that determines if a single random proxy is
@@ -267,7 +268,7 @@ class Proxies:
             for (ip, port, code, country, anonymity, google, https, last_checked) in table:
                 # Convert last_checked to seconds
                 time_to_add = 0
-                time = last_checked.script.split()
+                time = last_checked.string.split()
                 if "hour" in time or "hours" in time:
                     time_to_add += hour * int(time.pop(0))
                     time.pop(0)
@@ -280,18 +281,20 @@ class Proxies:
                     time_to_add += int(time.pop(0))
 
                 proxy = Proxy(
-                    ip=ip.script,
-                    port=port.script,
-                    code=code.script,
-                    country=country.script,
-                    anonymity=anonymity.script,
-                    google=google.script,
-                    https=https.script,
+                    ip=ip.string,
+                    port=port.string,
+                    code=code.string,
+                    country=country.string,
+                    anonymity=anonymity.string,
+                    google=google.string,
+                    https=https.string,
                     last_checked=str(time_to_add)
                 )
                 # Add to country and code dicts so that proxies can be
                 # looked up by either their country or country code.
                 proxies.append(proxy)
+                if len(proxies) == limit:
+                    break
 
             # Save proxies into a file if it's enabled
             if save:
@@ -304,36 +307,19 @@ class Proxies:
 
     def get_usr_proxy_settings(self):
         """Gets proxy settings for `extract_by_type` from user."""
-        menu = Proxy.choice_menu()
+        # Create empty Proxy class for the attributes
+        menu = list(Proxy("", "").__dict__.keys())
         values = {}
         while True:
-            # List attributes
-            for index, attribute in menu.items():
-                print(f"{index + 1}: {attribute}")
-
-            print("0: exit (finished adding options)")
-            print("Please choose which options you'd like to set: ", end='')
-            # Create valid options and include the 0 for exit
-            valid_choices = {str(index + 1) for index in menu}
-            valid_choices.update({"0"})
-            # Get user input
-            user_choice = self.get_input(valid_choices)
-            if user_choice == "0":
+            print("Options for proxy filter:")
+            user_choice = UserInput.create_menu(menu, exit_=True)
+            if user_choice == "exit":
                 break
 
             # Add the value for the proxy attribute
-            values[menu[int(user_choice) - 1]] = \
-                input("What value should the proxy have: ")
+            values[user_choice] = input("What value should the proxy have: ")
 
         return values
-
-    def get_input(self, valid_options: set):
-        user_input = input()
-        if user_input not in valid_options:
-            print("Invalid selection! Please try again: ", end='')
-            return self.get_input(valid_options)
-
-        return user_input
 
     @staticmethod
     def group_by(proxy_list: list, attribute: str):
@@ -514,33 +500,7 @@ class Proxy:
                f"Https: {self.https}\n" \
                f"Last Checked: {self.last_checked}"
 
-    def get_details(self):
-        """Get all attributes of the proxy object"""
-        return [
-            self.ip,
-            self.port,
-            self.code,
-            self.country,
-            self.anonymity,
-            self.google,
-            self.https,
-            self.last_checked,
-        ]
-
-    @staticmethod
-    def choice_menu():
-        """Returns a `dict` of attributes in menu format."""
-        return {
-            0: "ip",
-            1: "port",
-            2: "code",
-            3: "country",
-            4: "anonymity",
-            5: "google",
-            6: "https",
-            7: "last_checked",
-        }
-
 
 if __name__ == "__main__":
-    pass
+    test = UserAgents()
+    test.list_query_options()

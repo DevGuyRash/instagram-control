@@ -6,7 +6,6 @@ import json
 from dotenv import load_dotenv
 import os
 import pickle
-from bs4 import BeautifulSoup
 
 
 class UserSession(requests.Session):
@@ -30,7 +29,11 @@ class UserSession(requests.Session):
         with open(filename, 'wb') as f:
             pickle.dump(session.cookies, f)
 
-    def _load_cookies(self, filename: str = "cookies", fresh: bool = False) -> bool:
+    def _load_cookies(self,
+                      filename: str = "cookies",
+                      fresh: bool = False,
+                      expand: bool = False
+                      ) -> bool:
         """
         Loads any existing cookies files to the session
 
@@ -42,6 +45,8 @@ class UserSession(requests.Session):
             fresh: Set to `True` to delete any existing session cookies
                 and existing cookies file.
                 Set to `False` to check for existing cookies files.
+            expand: Set to `True` to display information about cookies
+                loaded from any found cookies file.
 
         Returns:
             `True` if the cookies successfully load to the session,
@@ -56,10 +61,11 @@ class UserSession(requests.Session):
                     if cookies:
                         # If cookies are found in the file
                         self.cookies = cookies
-                        # Display the values for the cookies
-                        self.expand_cookies(self.cookies)
+                        if expand:
+                            # Display the values for the cookies
+                            self.expand_cookies(self.cookies)
+                            print()  # Spacer for text
 
-                        print()  # Spacer for text
                         print("Cookies successfully added to session!")
                         return True
                     else:
@@ -287,15 +293,6 @@ class InstagramSession(UserSession):
 
 
 if __name__ == "__main__":
-    apple = InstagramSession()
-    apple.login(fresh=True)
-
-    retval = apple.get("https://www.instagram.com/explore/tags/realestatephotography/")  # TODO FOR DEBUGGING
-    soup = BeautifulSoup(retval.text, features="lxml")
-    print(soup.prettify())
-    with open("sample_file_1.html", "w", encoding="utf-8") as file:
-        file.write(soup.prettify())
-
-    print(soup.find("meta").get("name"))
+    pass
 
     #  TODO Update session with bs4 to detect when account has been IP Banned due to too many logins
