@@ -1,5 +1,7 @@
+import requests
 from bs4 import BeautifulSoup
 from file_manager import FileManager
+from instagram_scraper import InstagramScraper
 import re
 import json
 import os
@@ -118,6 +120,7 @@ class User:
     def __str__(self):
         return f"Id: {self.id}\n" \
                f"Username: {self.username}\n" \
+               f"Full Name: {self.name}\n" \
                f"Followers: {self.followers} | Following: {self.following}\n" \
                f"Category: {self.category}\n" \
                f"Website: {self.website}\n" \
@@ -147,29 +150,39 @@ class Post:
                 https://i.instagram.com/api/v1/media/`MEDIA_ID`/info
 
     Attributes:
-        likes_and_views_disabled (bool): Whether the likes_total and view
-            counts are disabled or not.
-        comment_likes_enabled (bool): Whether comment likes_total are enabled
-            or not.
-        username (str): Username of the account that posted this post.
-        name (str): Full name of the account that created the post.
-        media_type (int): Format of the media in the post (different
-            numbers meaning photo, video, gif, etc.)
         access_caption (str): The accessibility caption associated with
             the post, if there is one.
-        users_tagged (list): List of users tagged in this post.
-        pk (str): Unique id associated with the post.
-        id (str): Unique id associated with the post.
-        url_id (str): Unique url id used to access this post, usually
-            found towards the end of the url when you are on the post.
+        caption (Comment): The caption of the post, made by the poster.
+        comments (dict[str: Comment]): `list` of comments contained inside
+            the post.
+        comments_disabled (bool): Whether comments are disabled o not.
+        comment_likes_enabled (bool): Whether comment likes_total are
+            enabled or not.
+        comments_total (str): Total amount of comments on the post.
         created (int): Timestamp of when the post was created
         created_formatted (datetime): `Datetime` object of when the post
             was created.
-        comments_total (str): Total amount of comments on the post.
+        duration (int): Length of video. Applies to single media video
+            posts.
+        id (str): Unique id associated with the post.
+        likes (dict): Contains all users found that liked the post.
+        likes_and_views_disabled (bool): Whether the likes_total and view
+            counts are disabled or not.
         likes_total (str): Total amount of likes_total on the post.
-        comments (list[Comment]): `list` of comments contained inside
-            the post.
-        caption (Comment): The caption of the post, made by the poster.
+        media (list): Contains `Media` objects of all media in the post.
+        media_count (int): Total amount of media in the post. Applies to
+            carousel media when there are multiple images or videos in
+            a single post.
+        media_type (int): Format of the media in the post (different
+            numbers meaning photo, video, gif, etc.)
+        name (str): Full name of the account that created the post.
+        pk (str): Unique id associated with the post.
+        short_code (str): Unique url id used to access this post, usually
+        username (str): Username of the account that posted this post.
+        users_tagged (list): List of users tagged in this post.
+            found towards the end of the url when you are on the post.
+        views_total (int): Total amount of views on the post. Applies to
+            single media video posts.
     """
 
     def __init__(self, json_data):
@@ -182,9 +195,9 @@ class Post:
             print("Invalid instagram post, skipping...")
             return
 
-        # url_id and username must be assigned before saving.
-        # Use the url_id with the user-post link in urls to go to the post.
-        self.url_id = base.get('code')
+        # short_code and username must be assigned before saving.
+        # Use the short_code with the user-post link in urls to go to the post.
+        self.short_code = base.get('code')
 
         # Poster info
         self.username = base["user"]["username"]
@@ -283,17 +296,17 @@ class Post:
 
         # Check that the post has user likes, and if so save them to the
         # instance of the Post object using a list comprehension.
-        post_likes = base.get("likers")
-        if post_likes:
-            self.likes = [(user["pk"], user["username"], user["full_name"]) for user in post_likes]
+        self.likes = base.get("likers", {})
+        if self.likes:
+            self.likes = {user["username"]: None for user in self.likes}
 
         # Comments
         self.comments_disabled = base.get("comments_disabled")
 
         # Check that the post has comments, and if so save them to the
-        # instance of the Post object using a list comprehension.
+        # instance of the Post object using a dict comprehension.
         if not self.comments_disabled:
-            self.comments = [Comment(
+            self.comments = {comment['user']['username']: Comment(
                 username=comment['user']['username'],
                 name=comment['user']['full_name'],
                 text=comment['text'],
@@ -304,9 +317,9 @@ class Post:
                 likes_total=comment['comment_like_count']
             )
                 for comment in base['comments']
-            ]
+            }
         else:
-            self.comments = []
+            self.comments = {}
 
         # Post caption
         caption = base.get('caption')
@@ -332,7 +345,7 @@ class Post:
 
     def __str__(self):
         return f"Post ID: {self.id}\n" \
-               f"Post URL_ID: {self.url_id}\n" \
+               f"Post URL_ID: {self.short_code}\n" \
                f"Post By: {self.username}\n" \
                f"Post Caption: {self.caption.text}\n" \
                f"Post Total Likes: {self.likes_total}\n" \
@@ -354,7 +367,7 @@ class Post:
 
         FileManager.create_dir("json/posts")
         # Save the json file
-        with open(f"json/posts/{self.username}_post_{self.url_id}.json", 'w',
+        with open(f"json/posts/{self.username}_post_{self.short_code}.json", 'w',
                   encoding='utf-8') as file:
             json.dump(json_data, file)
 
@@ -386,6 +399,8 @@ class Comment:
         media_type (int): Format of the media in the comment. The number
             represents video, text, image, etc.
         likes_total (int): Total amount of likes_total on the comment.
+        user (User): Optional `User` object attached to the comment for
+            more information.
     """
 
     def __init__(self,
@@ -397,6 +412,7 @@ class Comment:
                  user_id: int = 0,
                  media_type: int = 0,
                  likes_total: int = 0,
+                 user: User = None
                  ):
         self.username = username
         self.name = name
@@ -407,6 +423,7 @@ class Comment:
         self.user_id = user_id
         self.media_type = media_type
         self.likes_total = likes_total
+        self.user = user
 
     def __str__(self):
         return f"Comment: {self.text}\n" \
@@ -519,15 +536,28 @@ class Media:
                    f"Codec: {self.codec}"
 
 
+class Hashtag:
+
+    def __init__(self, hashtag):
+        self.text = hashtag
+        # self.geo_checker = Geometry()
+
+
+class HashtagManager:
+
+    def __init__(self):
+        pass
+
+
 class UserManager:
+    with open("urls.json", encoding='utf-8') as f:
+        URLS = json.load(f)["instagram"]
 
-    def __init__(self, session, username):
-        with open("urls.json", encoding='utf-8') as f:
-            self.URLS = json.load(f)["instagram"]
+    def __init__(self):
+        pass
 
-        self.session = session
-
-    def create_users(self, user: "", *args, **kwargs) -> list:
+    @staticmethod
+    def create_users(session: requests.Session, user: "", *args, **kwargs) -> list:
         """
         Searches up usernames given by the user, on Instagram.
 
@@ -536,6 +566,7 @@ class UserManager:
         attribute in a list.
 
         Args:
+            session: Requests `Session` or similar object.
             user: Single username to search up, rather than getting
                 input.
             *args: Any additional arguments to apply to the session GET.
@@ -570,7 +601,8 @@ class UserManager:
             }
 
             # Get username info
-            response = self.session.get(self.URLS["user-profile"], params=params, *args, **kwargs)
+            response = session.get(UserManager.URLS["user-profile"],
+                                   params=params, *args, **kwargs)
             # If the user is found
             if response.status_code == 200:
                 data = response.json()
@@ -590,16 +622,26 @@ class UserManager:
 
 
 class PostManager:
-
     with open("urls.json", encoding='utf-8') as f:
         URLS = json.load(f)["instagram"]
 
-    def __init__(self, session, url_code):
+    def __init__(self, session):
         self.session = session
         self.posts = []
 
-    def get_user_posts(self, *args, **kwargs):
-        """Retrieves the data for the posts the user provides."""
+    def get_user_posts(self, *args, **kwargs) -> None:
+        """
+        Retrieves the json data for multiple user inputted posts.
+
+        Converts all users that commented and liked the post into `User`
+        objects.
+
+        Args:
+            *args: Additional arguments to pass to the `GET` request
+                of instance `session`.
+            **kwargs: Additional arguments to pass to the `GET` request
+                of instance `session`.
+        """
         print(f"Input instagram post url codes, or full URLs "
               f"(format: {PostManager.URLS['user-post']}[URL_CODE]/)")
         print("When you're finished inputting Posts to get, type 'e'")
@@ -620,16 +662,43 @@ class PostManager:
             if url_code:
                 # A match was found, so get the match
                 url_code = url_code.group(1)
-                converted_post = Post(self.get_post_data(url_code, *args, **kwargs))
-                # Convert all usernames found in post likes into User objects.
-                # if converted_post.likes:
-                #     converted_post.likes = [user for user in converted_post.likes]
+                params = {
+                    "can_support_threading": "true",
+                    "permalink_enabled": "false",
+                }
+                converted_post = Post(self.get_post_data(url_code,
+                                                         *args,
+                                                         params=params,
+                                                         **kwargs))
+                # Convert all usernames found in post's likes into User
+                # objects.
+                if converted_post.likes:
+                    # Create a User object for all existing likes.
+                    # Index to 0 as a list is returned by create_users.
+                    for user in converted_post.likes:
+                        converted_post.likes[user] = UserManager.create_users(
+                            user=user,
+                            session=self.session,
+                        )[0]
+
+                if converted_post.comments:
+                    # There's comments on the post
+                    for comment in converted_post.comments:
+                        if comment.username in converted_post.likes:
+                            # There already exists a user object for this username
+                            comment.user = converted_post.likes[comment.username]
+                        else:
+                            # Create a new User for this comment
+                            comment.user = UserManager.create_users(
+                                user=comment.username,
+                                session=self.session,
+                            )[0]
 
                 posts.append(converted_post)
 
         self.posts = posts
 
-    def get_post_data(self, url_code: str, *args, **kwargs) -> dict:
+    def get_post_data(self, short_code: str, *args, **kwargs) -> dict:
         """
         Gets the `json` data from an instagram post.
 
@@ -637,8 +706,11 @@ class PostManager:
         random letters and numbers:
             https://www.instagram.com/p/[URL_CODE]/
 
+        Examples:
+            get_post_data(url_code="CCeGDPkDWJ4/")
+
         Args:
-            url_code: Unique shortcode for the instagram post, usually
+            short_code: Unique shortcode for the instagram post, usually
                 located near the end of the URL.
             *args: Any additional arguments to apply to the session GET.
             **kwargs: Any additional arguments to apply to the session
@@ -648,7 +720,7 @@ class PostManager:
             `dict` containing all information about the instagram post.
         """
         # Get the html of the post page to ge the media_id
-        response = self.session.get(f"{self.URLS['user-post']}{url_code}", *args, **kwargs)
+        response = self.session.get(f"{self.URLS['user-post']}{short_code}", *args, **kwargs)
         # Get media id from html
         media_id = self.extract_id_from_post(response.text)
 
@@ -692,19 +764,31 @@ class PostManager:
         return media_id
 
 
-class Hashtag:
-
-    def __init__(self, hashtag):
-        self.text = hashtag
-        # self.geo_checker = Geometry()
-
-
-if __name__ == "__main__":
-    filename = "json/posts/mutli_video_austinjkaufman_post_CfvfiieOjXz.json"
+if __name__ == "__main__":  # BuhmB7Ih1J4  # CCeGDPkDWJ4
+    # filename = "json/posts/mutli_video_austinjkaufman_post_CfvfiieOjXz.json"
     # filename = "json/posts/single_video_sony_post_Cfhkjtespv6.json"
-    with open(filename, encoding='utf-8') as file:
-        post = Post(json.load(file))
-
-    for item in post.media:
-        print(item)
-        print()
+    filename = "json/posts/single_image_austinjkaufman_post_BuhmB7Ih1J4.json"
+    # with open(filename, encoding='utf-8') as file:
+    #     post = Post(json.load(file))
+    #
+    # print(post.short_code)
+    # for item in post.likes:
+    #     print(item)
+    test = PostManager(InstagramScraper())
+    test.get_user_posts()
+    # import pickle
+    #
+    # # with open("json/post_test_toy_toky", "rb") as file:
+    # #     test = pickle.load(file)
+    # with open("json/post_test_toy_toky", "wb") as file:
+    #     pickle.dump(test, file)
+    #
+    # post = test.posts[0]
+    #
+    # for key, value in post.__dict__.items():
+    #     print(f"{key}\t|||\t\t{value}")
+    #
+    # print()
+    # print(post.media[0])
+    # with open("json/save_file.html", "w", encoding='utf-8') as file:
+    #     file.write(test.session.get("https://www.instagram.com/p/CgHcL2FO2UK/").text)

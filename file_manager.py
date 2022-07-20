@@ -6,7 +6,7 @@ class FileManager:
 
     DIRECTORY = re.compile(r'[\\/]([^\\/]*)')
     DRIVE_LETTER = re.compile(r'^(\w+):[\\/]')
-    ROOT = re.compile(r'^(\w+)[\\/]')
+    ROOT = re.compile(r'^(\w+)[\\/]?')
 
     def __init__(self):
         pass
@@ -28,7 +28,8 @@ class FileManager:
             prefix = os.getcwd()
             # The first directory needs to be added as it doesn't have
             # a '/' or '\' before it, for the regex search.
-            directories.insert(0, FileManager.ROOT.search(filepath).group(1))
+            root = FileManager.ROOT.search(filepath)
+            directories.insert(0, root.group(1))
 
         index_range = 0
         while True:
